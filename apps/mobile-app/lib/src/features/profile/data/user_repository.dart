@@ -24,8 +24,12 @@ class UserRepository {
     }
   }
 
-  Future<List<dynamic>> getLeaderboard() async {
-    final response = await _dio.get('/users/leaderboard');
+  Future<List<dynamic>> getLeaderboard({String? scope, String? timeframe}) async {
+    final Map<String, dynamic> query = {};
+    if (scope != null) query['scope'] = scope.toLowerCase();
+    if (timeframe != null) query['timeframe'] = timeframe.toLowerCase();
+    
+    final response = await _dio.get('/users/leaderboard', queryParameters: query);
     return response.data;
   }
 
@@ -73,8 +77,12 @@ class UserRepository {
     return response.data['isFollowing'];
   }
 
-  Future<Map<String, dynamic>> getDiscovery() async {
-    final response = await _dio.get('/traces/discovery');
+  Future<Map<String, dynamic>> getDiscovery({double? lat, double? long}) async {
+    final Map<String, dynamic> query = {};
+    if (lat != null) query['lat'] = lat;
+    if (long != null) query['long'] = long;
+    
+    final response = await _dio.get('/traces/discovery', queryParameters: query);
     return response.data;
   }
 

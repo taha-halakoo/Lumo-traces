@@ -83,16 +83,22 @@ export class TraceService {
     return data as Trace;
   }
 
-  static async getFeed(page: number = 1, limit: number = 20) {
+  static async getFeed(page: number = 1, limit: number = 20, type?: string) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('traces')
         .select('*, profiles(username, avatar_url)') 
         .eq('visibility', 'public')
         .order('created_at', { ascending: false })
         .range(from, to);
+    
+    if (type && type !== 'All') {
+        query = query.eq('type', type.toUpperCase());
+    }
+
+    const { data, error } = await query;
     
     if (error) throw error;
     return data;
@@ -227,10 +233,10 @@ export class TraceService {
     return data;
   }
 
-  static async getExplorerContent(userId: string) {
+  static async getExplorerContent(userId: string, lat: number, long: number) {
     // 1. Fetch Traces using Hybrid Brain (Mood + Identity)
     const traces = await this.getNearbyHybrid({
-        lat: 0, long: 0, radius: 10000, 
+        lat, long, radius: 10000, 
         userId
     });
 

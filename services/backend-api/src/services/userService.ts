@@ -149,8 +149,17 @@ export class UserService {
         return friends || [];
     }
 
-    static async getLeaderboard() {
-        const { data, error } = await supabase
+    static async getLeaderboard(scope: 'global' | 'friends' = 'global', currentUserId?: string, timeframe: 'all_time' | 'weekly' = 'all_time') {
+        if (timeframe === 'weekly') {
+            const { data, error } = await supabase.rpc('get_weekly_leaderboard', {
+                scope,
+                requesting_user_id: currentUserId
+            });
+            if (error) throw error;
+            return data;
+        }
+
+        let query = supabase
             .from('profiles')
             .select(`
                 id, username, avatar_url, reputation_points,
@@ -160,6 +169,25 @@ export class UserService {
             .order('reputation_points', { ascending: false })
             .limit(50);
         
+        if (scope === 'friends' && currentUserId) {
+            // Fetch friend IDs first
+            const { data: friends } = await supabase
+                .from('friendships')
+                .select('user_id_1, user_id_2')
+                .eq('status', 'accepted')
+                .or(`user_id_1.eq.${currentUserId},user_id_2.eq.${currentUserId}`);
+            
+            if (friends && friends.length > 0) {
+                 const friendIds = friends.map(f => f.user_id_1 === currentUserId ? f.user_id_2 : f.user_id_1);
+                 // Include self in friend leaderboard? Usually yes.
+                 friendIds.push(currentUserId);
+                 query = query.in('id', friendIds);
+            } else {
+                 return []; // No friends
+            }
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         return data || [];
     }

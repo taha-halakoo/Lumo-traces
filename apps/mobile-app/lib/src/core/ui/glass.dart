@@ -43,19 +43,23 @@ class GlassPanel extends StatelessWidget {
     double? width,
     double? height,
     EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    EdgeInsetsGeometry? margin,
     VoidCallback? onTap,
     Color? backgroundColor,
+    Border? border,
     double blur = DesignTokens.blurMedium,
   }) {
     return GlassPanel(
       width: width,
       height: height,
       padding: padding,
+      margin: margin,
       radius: DesignTokens.radiusFull,
       blur: blur,
       backgroundColor: backgroundColor,
-      child: child,
+      border: border,
       onTap: onTap,
+      child: child,
     );
   }
 

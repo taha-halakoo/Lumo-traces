@@ -11,11 +11,11 @@ class SocialRepository {
   SocialRepository(this._dio);
 
   Future<List<dynamic>> getFriends() async {
-    final response = await _dio.get('/friends');
+    final response = await _dio.get('/users/friends');
     return response.data as List<dynamic>;
   }
 
   Future<void> sendRequest(String targetId) async {
-    await _dio.post('/friends/request', data: {'targetUserId': targetId});
+    await _dio.post('/users/requests', data: {'targetId': targetId});
   }
 }

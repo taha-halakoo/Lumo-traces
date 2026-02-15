@@ -33,6 +33,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.invalidate(userSettingsProvider);
   }
 
+  Future<void> _resetPassword() async {
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    if (email == null) return;
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Password reset email sent")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(userSettingsProvider);
@@ -98,6 +118,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     value: settings['haptic_enabled'] ?? true,
                     onChanged: (val) => _updateSetting('haptic_enabled', val),
                   ),
+                  _buildToggleTile(
+                    icon: Icons.data_usage,
+                    title: "Data Saver",
+                    value: settings['data_saver'] ?? false,
+                    onChanged: (val) => _updateSetting('data_saver', val),
+                  ),
                   _buildSliderTile(
                     icon: Icons.radar,
                     title: "Auto-Unlock Range",
@@ -115,8 +141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   _buildSettingsTile(
                     icon: Icons.security, 
-                    title: "Security Details", 
-                    onTap: () {},
+                    title: "Security Details (Reset Password)", 
+                    onTap: _resetPassword,
                   ),
                   
                   const SizedBox(height: 40),

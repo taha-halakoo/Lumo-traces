@@ -9,17 +9,16 @@ import 'package:go_router/go_router.dart';
 import '../../profile/data/user_repository.dart';
 
 final leaderboardFilterProvider = StateProvider<String>((ref) => 'GLOBAL');
+final leaderboardTimeframeProvider = StateProvider<String>((ref) => 'ALL_TIME');
 
-final leaderboardProvider = FutureProvider<List<dynamic>>((ref) async {
+final leaderboardProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final filter = ref.watch(leaderboardFilterProvider);
-  if (filter == 'GLOBAL') {
-    return ref.read(userRepositoryProvider).getLeaderboard();
-  } else {
-    final global = await ref.read(userRepositoryProvider).getLeaderboard();
-    final friends = await ref.read(userRepositoryProvider).getFriends();
-    final friendIds = friends.map((f) => f['id']).toSet();
-    return global.where((u) => friendIds.contains(u['id'])).toList();
-  }
+  final timeframe = ref.watch(leaderboardTimeframeProvider);
+  
+  final scope = filter == 'CONNECTIONS' ? 'friends' : 'global';
+  final tf = timeframe == 'WEEKLY' ? 'weekly' : 'all_time';
+  
+  return ref.read(userRepositoryProvider).getLeaderboard(scope: scope, timeframe: tf);
 });
 
 class LeaderboardScreen extends ConsumerWidget {
@@ -29,6 +28,7 @@ class LeaderboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final leaderboardAsync = ref.watch(leaderboardProvider);
     final filter = ref.watch(leaderboardFilterProvider);
+    final timeframe = ref.watch(leaderboardTimeframeProvider);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -44,6 +44,7 @@ class LeaderboardScreen extends ConsumerWidget {
           Column(
             children: [
               const SizedBox(height: 100),
+              // Scope Filter
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: GlassPanel.pill(
@@ -80,6 +81,43 @@ class LeaderboardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              // Timeframe Filter
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: ['ALL_TIME', 'WEEKLY'].map((tf) {
+                    final isSelected = timeframe == tf;
+                    return GestureDetector(
+                      onTap: () {
+                        HapticService.selectionClick();
+                        ref.read(leaderboardTimeframeProvider.notifier).state = tf;
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: isSelected ? Colors.white30 : Colors.transparent),
+                        ),
+                        child: Text(
+                          tf.replaceAll('_', ' '), 
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white30,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            letterSpacing: 1
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              
               Expanded(
                 child: leaderboardAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator(color: DesignTokens.liquidBlue)),
@@ -94,6 +132,7 @@ class LeaderboardScreen extends ConsumerWidget {
                         final user = users[index];
                         final isTop3 = index < 3;
                         final rank = index + 1;
+                        final score = user['reputation_points'] ?? user['weekly_score'] ?? 0;
                         
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -148,7 +187,7 @@ class LeaderboardScreen extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      "${user['reputation_points'] ?? 0}",
+                                      "$score",
                                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                                     ),
                                     const Text("REP", style: TextStyle(color: Colors.white38, fontSize: 10)),

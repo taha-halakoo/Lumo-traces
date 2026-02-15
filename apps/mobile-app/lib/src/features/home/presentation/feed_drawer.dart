@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:traces_mobile/src/core/theme/design_tokens.dart';
 import 'package:traces_mobile/src/core/ui/glass.dart';
 import 'package:traces_mobile/src/core/ui/glass_shimmer.dart';
+import 'package:traces_mobile/src/core/services/haptic_service.dart';
+import 'package:traces_mobile/src/core/api/api_client.dart';
 import 'feed_notifier.dart';
 
 class FeedDrawer extends ConsumerStatefulWidget {
@@ -23,9 +25,19 @@ class _FeedDrawerState extends ConsumerState<FeedDrawer> {
     }
   }
 
+  Future<void> _likeTrace(String id) async {
+    HapticService.lightImpact();
+    // Optimistic UI update could be handled by local state or riverpod mutation
+    // For now, just fire and forget the API call
+    try {
+      await ref.read(apiClientProvider).post('/traces/$id/like');
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final feedAsync = ref.watch(feedProvider);
+    final currentFilter = ref.watch(feedFilterProvider);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.1,
@@ -54,6 +66,29 @@ class _FeedDrawerState extends ConsumerState<FeedDrawer> {
                   ),
                 ),
               ),
+
+              // Filters
+              SizedBox(
+                height: 40,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: ['All', 'Standard', 'Story', 'Orb', 'Friend'].map((f) {
+                    final isSelected = currentFilter == f;
+                    return GestureDetector(
+                      onTap: () => ref.read(feedFilterProvider.notifier).state = f,
+                      child: GlassPanel.pill(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        backgroundColor: isSelected ? DesignTokens.liquidBlue.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+                        border: isSelected ? Border.all(color: DesignTokens.liquidBlue) : null,
+                        child: Text(f, style: TextStyle(color: isSelected ? Colors.white : Colors.white54, fontSize: 12)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
               
               Expanded(
                 child: feedAsync.when(
@@ -99,6 +134,7 @@ class _FeedDrawerState extends ConsumerState<FeedDrawer> {
     final avatar = profile['avatar_url'] ?? "https://api.dicebear.com/7.x/bottts/svg?seed=$username";
     final text = trace['content_text'] ?? '';
     final id = trace['id'];
+    // final isLiked = trace['is_liked'] ?? false; // Assuming backend sends this, which it doesn't yet fully in 'feed' query
     
     return GestureDetector(
       onTap: () => context.push('/trace/$id'),
@@ -128,6 +164,10 @@ class _FeedDrawerState extends ConsumerState<FeedDrawer> {
                       Text("${trace['type']} • Just now", style: const TextStyle(color: Colors.white38, fontSize: 10)),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.favorite_border, color: Colors.white38, size: 20),
+                  onPressed: () => _likeTrace(id),
                 ),
                 Icon(Icons.more_horiz, color: Colors.white.withOpacity(0.2)),
               ],

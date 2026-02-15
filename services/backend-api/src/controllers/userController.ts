@@ -61,7 +61,9 @@ export class UserController {
     }
 
     static async getLeaderboard(req: FastifyRequest, reply: FastifyReply) {
-        const leaderboard = await UserService.getLeaderboard();
+        const { scope, timeframe } = req.query as { scope?: 'global' | 'friends', timeframe?: 'all_time' | 'weekly' };
+        const user = (req as any).user;
+        const leaderboard = await UserService.getLeaderboard(scope, user.id, timeframe);
         return reply.send(leaderboard);
     }
 

@@ -222,6 +222,16 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
     updated_at timestamptz DEFAULT now()
 );
 
+-- 7.6 Feature Flags
+CREATE TABLE IF NOT EXISTS public.feature_flags (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    key text UNIQUE NOT NULL,
+    is_enabled boolean DEFAULT false,
+    description text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
 -- 8. Functions & Triggers
 
 -- AUTO PROFILE CREATION (CRITICAL FOR AUTH)
@@ -371,7 +381,7 @@ RETURNS TABLE (
   created_at timestamptz,
   expires_at timestamptz,
   music_track_id text,
-  author_username text, 
+  profiles jsonb, -- Return profile as JSON to match other queries
   is_friend boolean,    
   score float
 ) 
@@ -391,7 +401,10 @@ BEGIN
     t.created_at,
     t.expires_at,
     t.music_track_id,
-    p.username as author_username,
+    jsonb_build_object(
+      'username', p.username,
+      'avatar_url', p.avatar_url
+    ) as profiles,
     EXISTS (
         SELECT 1 FROM public.friendships f 
         WHERE (f.user_id_1 = requesting_user_id AND f.user_id_2 = t.author_id)
@@ -406,7 +419,7 @@ BEGIN
             SELECT 1 FROM public.friendships f 
             WHERE (f.user_id_1 = requesting_user_id AND f.user_id_2 = t.author_id)
                OR (f.user_id_1 = t.author_id AND f.user_id_2 = requesting_user_id)
-            AND f.status = 'accepted'
+        AND f.status = 'accepted'
          ) THEN 0.3 ELSE 0 END)
       * (CASE WHEN t.type = 'ORB' THEN 1.5 
               WHEN t.type = 'CHALLENGE' THEN 1.2 
@@ -416,6 +429,8 @@ BEGIN
     public.traces t
   JOIN
     public.profiles p ON t.author_id = p.id
+  JOIN
+    public.user_settings s ON p.id = s.user_id
   WHERE 
     ST_DWithin(
       t.location,
@@ -425,8 +440,59 @@ BEGIN
     AND (t.expires_at IS NULL OR t.expires_at > now())
     AND t.is_hidden = false
     AND t.deleted_at IS NULL
+    AND s.incognito_mode = false -- Hide traces from incognito users
   ORDER BY 
     score DESC
+  LIMIT 50;
+END;
+$$;
+
+-- Weekly Leaderboard (Approximate based on recent activity)
+CREATE OR REPLACE FUNCTION get_weekly_leaderboard(
+  scope text DEFAULT 'global',
+  requesting_user_id uuid DEFAULT NULL
+)
+RETURNS TABLE (
+  id uuid,
+  username text,
+  avatar_url text,
+  reputation_points bigint -- Calculated weekly score
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.id,
+    p.username,
+    p.avatar_url,
+    (
+      -- Count unlocked traces (50 pts each)
+      (SELECT count(*) FROM public.unlocked_traces u 
+       WHERE u.user_id = p.id AND u.unlocked_at > now() - interval '7 days') * 50
+      +
+      -- Count traces dropped (10 pts each - assumed)
+      (SELECT count(*) FROM public.traces t 
+       WHERE t.author_id = p.id AND t.created_at > now() - interval '7 days') * 10
+    )::bigint as weekly_score
+  FROM 
+    public.profiles p
+  JOIN
+    public.user_settings s ON p.id = s.user_id
+  WHERE 
+    s.incognito_mode = false
+    AND (
+      scope = 'global' 
+      OR 
+      (scope = 'friends' AND EXISTS (
+        SELECT 1 FROM public.friendships f 
+        WHERE (f.user_id_1 = requesting_user_id AND f.user_id_2 = p.id)
+           OR (f.user_id_1 = p.id AND f.user_id_2 = requesting_user_id)
+        AND f.status = 'accepted'
+      ))
+    )
+  ORDER BY 
+    weekly_score DESC
   LIMIT 50;
 END;
 $$;

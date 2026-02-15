@@ -5,18 +5,22 @@ import '../../../core/api/api_client.dart';
 
 final newTraceEventProvider = StateProvider<Map<String, dynamic>?>((ref) => null);
 
-final feedProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<dynamic>>>((ref) {
-  return FeedNotifier(ref.read(apiClientProvider), ref);
+final feedFilterProvider = StateProvider<String>((ref) => 'All');
+
+final feedProvider = StateNotifierProvider.autoDispose<FeedNotifier, AsyncValue<List<dynamic>>>((ref) {
+  final filter = ref.watch(feedFilterProvider);
+  return FeedNotifier(ref.read(apiClientProvider), ref, filter);
 });
 
 class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
   final Dio _dio;
   final Ref _ref;
+  final String filter;
   int _page = 1;
   bool _hasMore = true;
   bool _isLoadingMore = false;
 
-  FeedNotifier(this._dio, this._ref) : super(const AsyncValue.loading()) {
+  FeedNotifier(this._dio, this._ref, this.filter) : super(const AsyncValue.loading()) {
     loadInitial();
     _setupRealtime();
   }
@@ -30,7 +34,10 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
           table: 'traces',
           callback: (payload) {
             final newTrace = payload.newRecord;
-            _fetchAndInsertNew(newTrace['id']);
+            // Only insert if matches filter
+            if (filter == 'All' || (newTrace['type'] as String?)?.toUpperCase() == filter.toUpperCase()) {
+               _fetchAndInsertNew(newTrace['id']);
+            }
           },
         )
         .subscribe();
@@ -52,7 +59,10 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
     _page = 1;
     _hasMore = true;
     try {
-      final response = await _dio.get('/traces/feed', queryParameters: {'page': _page, 'limit': 15});
+      final Map<String, dynamic> query = {'page': _page, 'limit': 15};
+      if (filter != 'All') query['type'] = filter;
+      
+      final response = await _dio.get('/traces/feed', queryParameters: query);
       final List data = response.data;
       state = AsyncValue.data(data);
       if (data.length < 15) _hasMore = false;
@@ -67,7 +77,10 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
     _page++;
     
     try {
-      final response = await _dio.get('/traces/feed', queryParameters: {'page': _page, 'limit': 15});
+      final Map<String, dynamic> query = {'page': _page, 'limit': 15};
+      if (filter != 'All') query['type'] = filter;
+      
+      final response = await _dio.get('/traces/feed', queryParameters: query);
       final List newData = response.data;
       
       if (newData.isEmpty) {
