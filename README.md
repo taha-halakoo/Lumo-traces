@@ -1,6 +1,5 @@
 # Lumo - The Real-World Browser
 
-<<<<<<< HEAD
 **Lumo** is a location-based social platform that bridges the digital and physical worlds. Users leave digital content ("loomo") at physical coordinates, which others can only discover and unlock when they are physically nearby (< 20m).
 
 ## 🚀 Key Features
