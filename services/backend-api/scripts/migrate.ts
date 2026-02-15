@@ -21,30 +21,19 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
+const SCHEMA_FILE = path.join(__dirname, '../db_schema.sql');
 
 async function run() {
     console.log('🚀 Starting Database Migration...');
     
-    const files = fs.readdirSync(MIGRATIONS_DIR).sort();
-    
-    for (const file of files) {
-        if (!file.endsWith('.sql')) continue;
-        
-        console.log(`🔹 Running ${file}...`);
-        const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-        
-        // Note: Supabase JS client doesn't support raw SQL execution easily via public API
-        // BUT we can use the pg-postgres library OR just warn the user.
-        // Since we are in a CLI agent context, and I can't install 'pg' without permission/setup,
-        // I will assume the user has run these or I will try a clever trick using a stored procedure if available.
-        // Actually, the best way for a "Local" setup is to just log what needs to be run.
-        
-        // HOWEVER, since I am an Agent, I can try to use the REST API if there's a SQL function exposed (unlikely).
-        // Let's assume this script is for the USER to run via their Dashboard or CLI.
-        console.log(`   (Content of ${file} loaded. Please execute in Supabase SQL Editor)`);
+    if (!fs.existsSync(SCHEMA_FILE)) {
+        console.error('❌ Consolidated schema file not found at:', SCHEMA_FILE);
+        process.exit(1);
     }
-    
+
+    console.log(`🔹 Processing db_schema.sql...`);
+    // In a real scenario, we might use a dedicated SQL runner or Postgres client.
+    console.log('✅ Schema file detected. Please execute the contents of db_schema.sql in your Supabase SQL Editor for a clean slate.');
     console.log('✅ Migration Check Complete.');
 }
 

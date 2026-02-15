@@ -2,6 +2,12 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { supabase } from '../lib/supabase';
 
 export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
+  // Test Bypass
+  if (process.env.NODE_ENV === 'test' && req.headers['x-user-id']) {
+    (req as any).user = { id: req.headers['x-user-id'] };
+    return;
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {

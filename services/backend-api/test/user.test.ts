@@ -23,7 +23,7 @@ test('User & Profile API Flow', async (t) => {
     await t.test('PUT /profile - Should validate input (Zod)', async () => {
         const response = await server.inject({
             method: 'PUT',
-            url: '/profile',
+            url: '/v1/users/me',
             headers: { 'x-user-id': 'user-1' },
             payload: {
                 username: "To" // Too short (<3 chars)
@@ -46,7 +46,7 @@ test('User & Profile API Flow', async (t) => {
 
         const response = await server.inject({
             method: 'PUT',
-            url: '/profile',
+            url: '/v1/users/me',
             headers: { 'x-user-id': 'user-1' },
             payload: {
                 username: "ValidUser",
@@ -67,7 +67,7 @@ test('User & Profile API Flow', async (t) => {
 
         const response = await server.inject({
             method: 'POST',
-            url: '/traces/123/report',
+            url: '/v1/traces/123/report',
             headers: { 'x-user-id': 'user-1' },
             payload: {
                 reason: "Spam content"

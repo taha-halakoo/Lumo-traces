@@ -34,7 +34,13 @@ export const buildServer = () => {
         if (reply.statusCode >= 400) return payload;
         try {
             const parsed = JSON.parse(payload as string);
-            if (parsed.success !== undefined && parsed.data !== undefined) return payload;
+            // If it's already an object with 'success' field, don't re-wrap it
+            if (parsed && typeof parsed === 'object' && parsed.success !== undefined) {
+                // If it doesn't have 'data', and it's intended to be the data itself, 
+                // we might still want to wrap it, BUT for our specific services 
+                // that return {success, message}, we should respect it.
+                return payload;
+            }
             return JSON.stringify({ success: true, data: parsed });
         } catch (e) {
             return JSON.stringify({ success: true, data: payload });

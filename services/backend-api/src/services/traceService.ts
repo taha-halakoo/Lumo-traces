@@ -108,6 +108,10 @@ export class TraceService {
     await supabase.from('trace_comments').insert({ user_id: userId, trace_id: traceId, content });
   }
 
+  static async reportTrace(userId: string, traceId: string, reason: string) {
+    await supabase.from('reports').insert({ reporter_id: userId, trace_id: traceId, reason });
+  }
+
   static async getTraceDetails(traceId: string, userId?: string) {
     const { data, error } = await supabase
         .from('traces')

@@ -46,7 +46,7 @@ test('Gamification API Flow', async (t) => {
 
         const response = await server.inject({
             method: 'POST',
-            url: '/gamification/badges/check',
+            url: '/v1/gamification/badges/check',
             headers: { 'x-user-id': 'user-1' }
         });
 
@@ -60,7 +60,7 @@ test('Gamification API Flow', async (t) => {
 
         const response = await server.inject({
             method: 'POST',
-            url: '/traces/trace-123/infect',
+            url: '/v1/traces/trace-123/infect',
             headers: { 'x-user-id': 'user-1' },
             payload: { lat: 0, long: 0 }
         });

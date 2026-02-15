@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { TraceService } from '../services/traceService';
 import { RankingService } from '../services/rankingService';
+import { GamificationService } from '../services/gamificationService';
 
 // Zod Schemas
 const nearbySchema = z.object({
@@ -20,6 +21,11 @@ const createTraceSchema = z.object({
 });
 
 const unlockSchema = z.object({
+    lat: z.number(),
+    long: z.number()
+});
+
+const infectSchema = z.object({
     lat: z.number(),
     long: z.number()
 });
@@ -156,4 +162,35 @@ export class TraceController {
     await TraceService.commentTrace(user.id, id, content);
     return reply.send({ success: true });
   }
+
+  static async report(req: FastifyRequest, reply: FastifyReply) {
+    const user = (req as any).user;
+    const { id } = req.params as { id: string };
+    const { reason } = req.body as { reason: string };
+    if (!reason) throw { status: 400, message: 'Reason required' };
+    await TraceService.reportTrace(user.id, id, reason);
+    return reply.send({ success: true });
+  }
+
+  static async infect(req: FastifyRequest, reply: FastifyReply) {
+    const { id } = req.params as { id: string };
+    const parseResult = infectSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+        const err = new Error('Invalid location data');
+        (err as any).statusCode = 400;
+        throw err;
+    }
+    
+    const { lat, long } = parseResult.data;
+    const user = (req as any).user;
+
+    try {
+        const result = await GamificationService.handleInfection(user.id, id, lat, long);
+        return reply.send(result);
+    } catch (err) {
+        throw err;
+    }
+  }
 }
+

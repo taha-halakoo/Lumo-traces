@@ -11,23 +11,37 @@ export class UserService {
 
         if (error || !data) return null;
 
+        const parseVector = (v: any) => {
+            if (!v) return [];
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string') {
+                try {
+                    return JSON.parse(v);
+                } catch (e) {
+                    // Handle postgres vector format "[0.1,0.2,...]" if it fails JSON.parse
+                    return v.replace('[', '').replace(']', '').split(',').map(Number);
+                }
+            }
+            return [];
+        };
+
         return {
-            mood: data.mood_embedding ? JSON.parse(data.mood_embedding as unknown as string) : [],
-            identity: data.identity_embedding ? JSON.parse(data.identity_embedding as unknown as string) : []
+            mood: parseVector(data.mood_embedding),
+            identity: parseVector(data.identity_embedding)
         };
     }
 
     static async updateMood(userId: string, newMood: number[]) {
-        // Supabase/Postgres vector extension expects a string "[1,2,3]"
+        // Supabase/Postgres vector extension expects a string "[1,2,3]" or an array depending on the client config
         await supabase.from('profiles').update({ 
-            mood_embedding: JSON.stringify(newMood),
+            mood_embedding: newMood, // Supabase-js handles arrays for vector types now
             last_mood_update: new Date().toISOString()
         }).eq('id', userId);
     }
 
     static async updateIdentity(userId: string, newIdentity: number[]) {
         await supabase.from('profiles').update({ 
-            identity_embedding: JSON.stringify(newIdentity)
+            identity_embedding: newIdentity
         }).eq('id', userId);
     }
 

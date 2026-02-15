@@ -41,8 +41,7 @@ export class GamificationService {
             
             // Logic: Notify User!
             if (data && data.length > 0) {
-                // Import locally to avoid circular dep if needed, or assume it's safe
-                const { NotificationService } = require('./notificationService');
+                const { NotificationService } = await import('./notificationService');
                 for (const badge of newBadges) {
                     await NotificationService.send(userId, 'badge', 'New Badge Unlocked!', `You earned: ${badge}`);
                 }

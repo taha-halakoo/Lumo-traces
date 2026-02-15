@@ -14,6 +14,8 @@ export async function traceRoutes(fastify: FastifyInstance) {
   fastify.post('/:id/unlock', { preHandler: [requireAuth] }, TraceController.unlock);
   fastify.post('/:id/like', { preHandler: [requireAuth] }, TraceController.like);
   fastify.post('/:id/comment', { preHandler: [requireAuth] }, TraceController.comment);
+  fastify.post('/:id/infect', { preHandler: [requireAuth] }, TraceController.infect);
+  fastify.post('/:id/report', { preHandler: [requireAuth] }, TraceController.report);
   
   // User specific
   fastify.get('/me', { preHandler: [requireAuth] }, TraceController.getMyTraces);

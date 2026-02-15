@@ -98,9 +98,9 @@ test('Traces API Flow', async (t) => {
             payload: { lat: 40, long: -74 }
         });
 
-        assert.strictEqual(response.statusCode, 200); // 200 OK because logic handled cleanly
+        assert.strictEqual(response.statusCode, 200); 
         const body = JSON.parse(response.body);
         assert.strictEqual(body.success, false);
-        assert.match(body.data.message, /Too far away/);
+        assert.match(body.message, /Too far away/);
     });
 });
