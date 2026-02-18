@@ -54,6 +54,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleLogin() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signInWithPassword(
@@ -75,10 +76,6 @@ class _AuthScreenState extends State<AuthScreen> {
         provider,
         redirectTo: 'io.supabase.flutter://login-callback/',
       );
-      // Note: The actual redirect and auth state change is handled by Supabase Auth State Change listener usually in main.dart or a provider
-      // But for this screen we might just wait or let the listener redirect. 
-      // Since we don't have a listener set up in this specific widget, we rely on the redirect to re-open the app or the auth state change to trigger a router refresh if configured.
-      // For now, we just catch errors.
     } catch (e) {
       if (mounted) _showError(e.toString());
     } finally {
@@ -87,6 +84,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleSignUp() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signUp(
@@ -98,7 +96,6 @@ class _AuthScreenState extends State<AuthScreen> {
           'birthdate': _selectedBirthdate?.toIso8601String(),
           'bio': _bioCtrl.text.trim(),
           'personality_type': _selectedPersonality,
-          // Auto-generate a futuristic avatar
           'avatar_url': 'https://api.dicebear.com/7.x/bottts/svg?seed=${_usernameCtrl.text.trim()}',
         },
       );
@@ -119,8 +116,6 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
-
-  // ... (rest of _selectDate and build method remain the same until _buildLoginStep)
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -151,99 +146,103 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false, // Handle locally or use scroll
-      body: Stack(
-        children: [
-          const LiquidBackground(),
-          
-          // Floating Ambient Particles (Extra Animation)
-          Positioned(
-            top: 100,
-            right: -50,
-            child: Container(
-              width: 150, height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: DesignTokens.liquidBlue.withOpacity(0.1),
-                boxShadow: [BoxShadow(color: DesignTokens.liquidBlue.withOpacity(0.2), blurRadius: 50)],
-              ),
-            ).animate(onPlay: (c) => c.repeat(reverse: true))
-             .moveY(begin: 0, end: 30, duration: 4.seconds)
-             .scale(begin: const Offset(1,1), end: const Offset(1.2, 1.2), duration: 5.seconds),
-          ),
-          Positioned(
-            bottom: 200,
-            left: -30,
-            child: Container(
-              width: 100, height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: DesignTokens.electricPurple.withOpacity(0.1),
-                boxShadow: [BoxShadow(color: DesignTokens.electricPurple.withOpacity(0.2), blurRadius: 40)],
-              ),
-            ).animate(onPlay: (c) => c.repeat(reverse: true))
-             .moveY(begin: 0, end: -40, duration: 6.seconds)
-             .scale(begin: const Offset(1,1), end: const Offset(0.8, 0.8), duration: 7.seconds),
-          ),
-
-          SafeArea(
-            child: Column(
-              children: [
-                // Logo / Title Area
-                const SizedBox(height: 40),
-                Text(
-                  "TRACES",
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 8,
-                    color: Colors.white.withOpacity(0.9),
-                    shadows: [
-                      Shadow(color: Colors.cyan.withOpacity(0.5), blurRadius: 20),
-                    ],
-                  ),
-                ).animate().fadeIn().moveY(begin: -20, end: 0),
-                
-                Text(
-                  "LEAVE YOUR MARK ON REALITY",
-                  style: TextStyle(
-                    fontSize: 12,
-                    letterSpacing: 4,
-                    color: Colors.white.withOpacity(0.6),
-                  ),
-                ).animate().fadeIn(delay: 300.ms),
-
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _buildLandingStep(),
-                      _buildLoginStep(),
-                      _buildSignUpCredentialsStep(),
-                      _buildSignUpIdentityStep(),
-                      _buildSignUpPersonaStep(),
-                    ],
-                  ),
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: false, // Handle locally or use scroll
+        body: Stack(
+          children: [
+            const LiquidBackground(),
+            
+            // Floating Ambient Particles (Extra Animation)
+            Positioned(
+              top: 100,
+              right: -50,
+              child: Container(
+                width: 150, height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: DesignTokens.liquidBlue.withOpacity(0.1),
+                  boxShadow: [BoxShadow(color: DesignTokens.liquidBlue.withOpacity(0.2), blurRadius: 50)],
                 ),
-              ],
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+               .moveY(begin: 0, end: 30, duration: 4.seconds)
+               .scale(begin: const Offset(1,1), end: const Offset(1.2, 1.2), duration: 5.seconds),
             ),
-          ),
-          
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: GlassPanel(
-                  width: 100,
-                  height: 100,
-                  blur: 20,
-                  child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+            Positioned(
+              bottom: 200,
+              left: -30,
+              child: Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: DesignTokens.electricPurple.withOpacity(0.1),
+                  boxShadow: [BoxShadow(color: DesignTokens.electricPurple.withOpacity(0.2), blurRadius: 40)],
                 ),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+               .moveY(begin: 0, end: -40, duration: 6.seconds)
+               .scale(begin: const Offset(1,1), end: const Offset(0.8, 0.8), duration: 7.seconds),
+            ),
+
+            SafeArea(
+              child: Column(
+                children: [
+                  // Logo / Title Area
+                  const SizedBox(height: 40),
+                  Text(
+                    "TRACES",
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 8,
+                      color: Colors.white.withOpacity(0.95),
+                      shadows: [
+                        Shadow(color: Colors.cyan.withOpacity(0.6), blurRadius: 30),
+                      ],
+                    ),
+                  ).animate().fadeIn().moveY(begin: -20, end: 0),
+                  
+                  Text(
+                    "LEAVE YOUR MARK ON REALITY",
+                    style: TextStyle(
+                      fontSize: 14,
+                      letterSpacing: 4,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ).animate().fadeIn(delay: 300.ms),
+
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildLandingStep(),
+                        _buildLoginStep(),
+                        _buildSignUpCredentialsStep(),
+                        _buildSignUpIdentityStep(),
+                        _buildSignUpPersonaStep(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            
+            if (_isLoading)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child: GlassPanel(
+                    width: 100,
+                    height: 100,
+                    blur: 20,
+                    child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -267,7 +266,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return _buildFormContainer(
       title: "LOGIN",
       children: [
-        _glassTextField("EMAIL", _emailCtrl, icon: Icons.email_outlined),
+        _glassTextField("EMAIL", _emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
         _glassTextField("PASSWORD", _passCtrl, isPassword: true, icon: Icons.lock_outline),
         const SizedBox(height: 32),
@@ -286,7 +285,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return _buildFormContainer(
       title: "CREATE ACCOUNT",
       children: [
-        _glassTextField("EMAIL", _emailCtrl, icon: Icons.email_outlined),
+        _glassTextField("EMAIL", _emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
         _glassTextField("PASSWORD", _passCtrl, isPassword: true, icon: Icons.lock_outline),
         const SizedBox(height: 32),
@@ -351,16 +350,13 @@ class _AuthScreenState extends State<AuthScreen> {
     ).animate().scale(duration: 200.ms, curve: Curves.easeInOut);
   }
 
-  // ... (rest of the file: _buildSignUpIdentityStep, _buildSignUpPersonaStep, _buildFormContainer, _glassTextField, _glassButton)
-
-
   Widget _buildSignUpIdentityStep() {
     return _buildFormContainer(
       title: "PROFILE DETAILS",
       children: [
         _glassTextField("USERNAME", _usernameCtrl, icon: Icons.alternate_email),
         const SizedBox(height: 16),
-        _glassTextField("FULL NAME", _nameCtrl, icon: Icons.person_outline),
+        _glassTextField("FULL NAME", _nameCtrl, icon: Icons.person_outline, textCapitalization: TextCapitalization.words),
         const SizedBox(height: 16),
         GestureDetector(
           onTap: () => _selectDate(context),
@@ -407,6 +403,7 @@ class _AuthScreenState extends State<AuthScreen> {
           child: TextField(
             controller: _bioCtrl,
             maxLines: 5,
+            textCapitalization: TextCapitalization.sentences,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: "BIO / MANIFESTO...",
@@ -487,7 +484,7 @@ class _AuthScreenState extends State<AuthScreen> {
     ).animate().fadeIn().slideY(begin: 0.1, end: 0);
   }
 
-  Widget _glassTextField(String label, TextEditingController controller, {bool isPassword = false, IconData? icon}) {
+  Widget _glassTextField(String label, TextEditingController controller, {bool isPassword = false, IconData? icon, TextInputType? keyboardType, TextCapitalization textCapitalization = TextCapitalization.none}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -510,6 +507,8 @@ class _AuthScreenState extends State<AuthScreen> {
           child: TextField(
             controller: controller,
             obscureText: isPassword,
+            keyboardType: keyboardType,
+            textCapitalization: textCapitalization,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               prefixIcon: icon != null ? Icon(icon, color: Colors.white.withOpacity(0.5), size: 18) : null,

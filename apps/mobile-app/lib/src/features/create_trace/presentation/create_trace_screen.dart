@@ -1,11 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:traces_mobile/src/core/theme/design_tokens.dart';
 import 'package:traces_mobile/src/core/ui/glass.dart';
-import '../../map/presentation/map_providers.dart';
-import '../../map/data/trace_repository.dart';
+import 'package:traces_mobile/src/features/map/presentation/map_providers.dart';
+import 'package:traces_mobile/src/features/map/presentation/map_view_model.dart';
+import 'package:traces_mobile/src/features/map/data/trace_repository.dart';
 
 class CreateTraceScreen extends ConsumerStatefulWidget {
   const CreateTraceScreen({super.key});
@@ -23,13 +23,14 @@ class _CreateTraceScreenState extends ConsumerState<CreateTraceScreen> {
 
   Future<void> _submit() async {
     final text = _contentController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter some text")));
+        return;
+    }
 
     setState(() => _isSubmitting = true);
 
     try {
-      final locationAsync = ref.read(userLocationProvider);
-      
       final position = await ref.read(userLocationProvider.future);
 
       await ref.read(traceRepositoryProvider).createTrace({
@@ -43,7 +44,8 @@ class _CreateTraceScreenState extends ConsumerState<CreateTraceScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trace dropped!")));
-        ref.invalidate(nearbyTracesProvider);
+        // Refresh the map to show the new trace
+        ref.read(mapViewModelProvider.notifier).scanArea();
       }
     } catch (e) {
       if (mounted) {
@@ -56,93 +58,112 @@ class _CreateTraceScreenState extends ConsumerState<CreateTraceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Scaffold(
-      backgroundColor: DesignTokens.glassDarkBase,
+      backgroundColor: Colors.black, // Fallback if tokens fail
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text("New Trace", style: theme.textTheme.titleLarge),
+        title: const Text("New Trace", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          TextButton(
-            onPressed: _isSubmitting ? null : _submit,
-            child: _isSubmitting 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text("DROP", style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: GestureDetector(
+              onTap: _isSubmitting ? null : _submit,
+              child: Center(
+                child: _isSubmitting 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text("DROP", style: TextStyle(color: DesignTokens.neonGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Type Selector (Pills)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _types.map((type) {
-                  final isSelected = _selectedType == type;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedType = type),
-                    child: GlassPanel(
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      radius: 24,
-                      backgroundColor: isSelected ? theme.colorScheme.primary.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-                      border: Border.all(
-                        color: isSelected ? theme.colorScheme.primary : Colors.white.withOpacity(0.1),
-                      ),
-                      child: Text(
-                        type,
-                        style: TextStyle(
-                          color: isSelected ? theme.colorScheme.primary : Colors.white70,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ).animate(target: isSelected ? 1 : 0).scale(end: const Offset(1.1, 1.1), duration: 200.ms).shimmer(duration: 800.ms),
-                  );
-                }).toList(),
-              ),
-            ).animate().slideX(begin: 1, end: 0, duration: 400.ms, curve: Curves.easeOut),
-            
-            const SizedBox(height: 24),
-
-            // 2. Content Input (Glass Area)
-            Expanded(
-              child: GlassPanel(
-                radius: 16,
-                backgroundColor: Colors.white.withOpacity(0.05),
-                child: TextField(
-                  controller: _contentController,
-                  maxLines: null,
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
-                  decoration: const InputDecoration(
-                    hintText: "What memory are you leaving here?",
-                    hintStyle: TextStyle(color: Colors.white30),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
-            
-            const SizedBox(height: 24),
-
-            // 3. Location Indicator
-            Row(
+      body: Stack(
+        children: [
+           // Background Gradient
+           Container(
+             decoration: const BoxDecoration(
+               gradient: LinearGradient(
+                 begin: Alignment.topLeft,
+                 end: Alignment.bottomRight,
+                 colors: [Color(0xFF0F172A), Colors.black],
+               ),
+             ),
+           ),
+           
+           Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.location_on, color: theme.colorScheme.secondary),
-                const SizedBox(width: 8),
-                const Text("Current Location (±5m)", style: TextStyle(color: Colors.white70)),
+                // 1. Type Selector (Pills)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _types.map((type) {
+                      final isSelected = _selectedType == type;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedType = type),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          child: GlassPanel.pill(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            backgroundColor: isSelected ? DesignTokens.liquidBlue.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+                            border: Border.all(
+                              color: isSelected ? DesignTokens.liquidBlue : Colors.white.withOpacity(0.1),
+                            ),
+                            child: Text(
+                              type,
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.white70,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ).animate(target: isSelected ? 1 : 0).scale(end: const Offset(1.05, 1.05), duration: 200.ms),
+                      );
+                    }).toList(),
+                  ),
+                ).animate().slideX(begin: 1, end: 0, duration: 400.ms, curve: Curves.easeOut),
+                
+                const SizedBox(height: 24),
+
+                // 2. Content Input (Glass Area)
+                Expanded(
+                  child: GlassPanel(
+                    radius: 16,
+                    backgroundColor: Colors.white.withOpacity(0.05),
+                    child: TextField(
+                      controller: _contentController,
+                      maxLines: null,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      decoration: const InputDecoration(
+                        hintText: "What memory are you leaving here?",
+                        hintStyle: TextStyle(color: Colors.white30),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
+                
+                const SizedBox(height: 24),
+
+                // 3. Location Indicator
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: DesignTokens.liquidBlue),
+                    const SizedBox(width: 8),
+                    const Text("Current Location (±5m)", style: TextStyle(color: Colors.white70)),
+                  ],
+                ).animate().fadeIn(delay: 400.ms),
               ],
-            ).animate().fadeIn(delay: 400.ms),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

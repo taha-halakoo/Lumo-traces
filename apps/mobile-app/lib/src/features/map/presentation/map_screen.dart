@@ -12,6 +12,7 @@ import 'package:traces_mobile/src/core/services/haptic_service.dart';
 import 'package:traces_mobile/src/features/home/presentation/feed_drawer.dart';
 import 'package:traces_mobile/src/features/map/presentation/map_providers.dart';
 import 'package:traces_mobile/src/features/map/presentation/map_view_model.dart';
+import 'widgets/scanner_overlay.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -77,7 +78,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
               },
               onPositionChanged: (position, hasGesture) {
                 if (hasGesture) {
-                  ref.read(mapViewModelProvider.notifier).updateBounds(position.bounds!);
+                  ref.read(mapViewModelProvider.notifier).updateBounds(position.visibleBounds);
                   ref.read(mapViewModelProvider.notifier).updateCenter(position.center);
                 }
               },
@@ -99,8 +100,8 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
                   markers: [
                     Marker(
                       point: LatLng(userLocAsync.value!.latitude, userLocAsync.value!.longitude),
-                      width: 60, height: 60,
-                      child: _UserLocationMarker(),
+                      width: 80, height: 80, // Larger hit box for visuals
+                      child: _PulsingUserMarker(),
                     ),
                   ],
                 ),
@@ -110,7 +111,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
                   return Marker(
                     point: LatLng((trace['lat'] as num).toDouble(), (trace['long'] as num).toDouble()),
                     width: 50, height: 50,
-                    child: _TraceMarker(
+                    child: _LiquidTraceMarker(
                       trace: trace,
                       onTap: () {
                         HapticService.heavyImpact();
@@ -123,7 +124,12 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
             ],
           ),
 
-          // 2. TOP BAR (Search)
+          // 2. SCANNER OVERLAY (Shader)
+          Positioned.fill(
+            child: ScannerOverlay(isScanning: mapState.isScanning),
+          ),
+
+          // 3. TOP BAR (Search)
           Positioned(
             top: 60, left: 16, right: 16,
             child: GlassPanel.pill(
@@ -160,7 +166,7 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
             ).animate().slideY(begin: -1.5, end: 0, duration: 600.ms, curve: Curves.easeOutBack),
           ),
 
-          // 3. BOTTOM CONTROLS
+          // 4. BOTTOM CONTROLS
           Positioned(
             bottom: 40, left: 16, right: 16,
             child: Column(
@@ -284,39 +290,48 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
   }
 }
 
-class _UserLocationMarker extends StatelessWidget {
+class _PulsingUserMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
       alignment: Alignment.center,
       children: [
+        // Outer Pulse
         Container(
-          width: 20, height: 20,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: DesignTokens.liquidBlue, blurRadius: 10, spreadRadius: 5)],
-          ),
-        ),
-        Container(
-          width: 40, height: 40,
+          width: 80, height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: DesignTokens.liquidBlue.withOpacity(0.5), width: 2),
+            gradient: RadialGradient(colors: [
+              DesignTokens.liquidBlue.withOpacity(0.3),
+              DesignTokens.liquidBlue.withOpacity(0.0)
+            ]),
           ),
         ).animate(onPlay: (c) => c.repeat())
-         .scale(duration: 2.seconds, begin: const Offset(0.5, 0.5), end: const Offset(2, 2), curve: Curves.easeOut)
-         .fadeOut(),
+         .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.5, 1.5), duration: 2.seconds, curve: Curves.easeOut)
+         .fadeOut(duration: 2.seconds),
+         
+        // Core
+        Container(
+          width: 20, height: 20,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: DesignTokens.liquidBlue, blurRadius: 10, spreadRadius: 2),
+              const BoxShadow(color: Colors.white, blurRadius: 5, spreadRadius: 1),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-class _TraceMarker extends StatelessWidget {
+class _LiquidTraceMarker extends StatelessWidget {
   final dynamic trace;
   final VoidCallback onTap;
 
-  const _TraceMarker({required this.trace, required this.onTap});
+  const _LiquidTraceMarker({required this.trace, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -333,20 +348,25 @@ class _TraceMarker extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
+          // Glass Base
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 40, height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
               shape: BoxShape.circle,
-              border: Border.all(color: color, width: 2),
-              boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 10)],
+              color: color.withOpacity(0.15),
+              border: Border.all(color: color.withOpacity(0.6), width: 1.5),
+              boxShadow: [
+                BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, spreadRadius: 1),
+              ],
             ),
-            child: Icon(icon, color: Colors.white, size: 20),
           ).animate(onPlay: (c) => c.repeat(reverse: true))
-           .scaleXY(end: 1.1, duration: 1.seconds),
+           .scaleXY(begin: 1.0, end: 1.1, duration: 1.5.seconds, curve: Curves.easeInOut),
+           
+          // Icon
+          Icon(icon, color: Colors.white, size: 20),
         ],
       ),
     );
@@ -367,18 +387,21 @@ class _FilterChip extends StatelessWidget {
         HapticService.selectionClick();
         onTap();
       },
-      child: GlassPanel.pill(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        backgroundColor: selected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-        border: selected ? Border.all(color: Colors.white, width: 1) : null,
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? Colors.white : Colors.white70,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        child: GlassPanel.pill(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          backgroundColor: selected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+          border: selected ? Border.all(color: Colors.white, width: 1) : null,
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.white70,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
         ),

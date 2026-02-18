@@ -1,4 +1,3 @@
-import 'package:flutter_test/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:traces_mobile/src/core/theme/design_tokens.dart';
 import 'package:flutter/material.dart';

@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.traces.app.traces_mobile"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

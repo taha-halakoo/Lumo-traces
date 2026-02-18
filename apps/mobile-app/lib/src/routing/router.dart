@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:traces_mobile/src/core/services/haptic_service.dart';
 import 'package:traces_mobile/src/core/ui/glass.dart';
-import 'package:traces_mobile/src/core/theme/design_tokens.dart';
+import 'package:traces_mobile/src/core/ui/liquid_transition.dart';
 
 import '../features/splash/presentation/splash_screen.dart';
 import '../features/auth/presentation/auth_screen.dart';
@@ -16,7 +16,6 @@ import '../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../features/trace_details/presentation/trace_details_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/social/presentation/friends_screen.dart';
-import '../features/collections/presentation/collections_screen.dart';
 import '../features/explorer/presentation/explorer_screen.dart';
 import '../features/auth/presentation/complete_profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -35,15 +34,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/auth',
-        pageBuilder: (context, state) => CustomTransitionPage(
+        pageBuilder: (context, state) => LiquidPageTransition(
           key: state.pageKey,
           child: const AuthScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) => FadeTransition(opacity: animation, child: child),
         ),
       ),
       GoRoute(
         path: '/complete-profile',
-        builder: (context, state) => const CompleteProfileScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const CompleteProfileScreen(),
+        ),
       ),
       // MAIN APP SHELL (Stateful)
       StatefulShellRoute.indexedStack(
@@ -59,7 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/home',
-                builder: (context, state) => const MapScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(child: const MapScreen()),
               ),
             ],
           ),
@@ -67,7 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/explorer',
-                builder: (context, state) => const ExplorerScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(child: const ExplorerScreen()),
               ),
             ],
           ),
@@ -75,7 +76,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/leaderboard',
-                builder: (context, state) => const LeaderboardScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(child: const LeaderboardScreen()),
               ),
             ],
           ),
@@ -83,7 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (context, state) => const ProfileScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(child: const ProfileScreen()),
               ),
             ],
           ),
@@ -92,37 +93,58 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/edit-profile',
-        builder: (context, state) => const EditProfileScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const EditProfileScreen(),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/trace/:id',
-        builder: (context, state) => TraceDetailsScreen(traceId: state.pathParameters['id']!),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: TraceDetailsScreen(traceId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/profile/:userId',
-        builder: (context, state) => PublicProfileScreen(userId: state.pathParameters['userId']!),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: PublicProfileScreen(userId: state.pathParameters['userId']!),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/create-trace',
-        builder: (context, state) => const CreateTraceScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const CreateTraceScreen(),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/notifications',
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+        ),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/friends',
-        builder: (context, state) => const FriendsScreen(),
+        pageBuilder: (context, state) => LiquidPageTransition(
+          key: state.pageKey,
+          child: const FriendsScreen(),
+        ),
       ),
     ],
   );

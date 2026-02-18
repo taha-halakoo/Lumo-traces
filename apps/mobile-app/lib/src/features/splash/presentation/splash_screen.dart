@@ -21,9 +21,10 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with WidgetsBindingObserver {
-  final int _minSplashTime = 6000; // 6 Seconds Minimum
+  final int _minSplashTime = 3000; // 3 Seconds for effect
   bool _isCheckingLocation = false;
-  String _statusMessage = "LOADING REALITY...";
+  String _statusMessage = "INITIALIZING REALITY...";
+  double _loadProgress = 0.0;
   
   @override
   void initState() {
@@ -46,8 +47,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with WidgetsBinding
   }
 
   Future<void> _handleInitialization() async {
+    // Simulate loading progress for effect
+    Timer.periodic(const Duration(milliseconds: 50), (timer) {
+      if (mounted) {
+        setState(() {
+          _loadProgress += 0.02;
+          if (_loadProgress >= 1.0) {
+            _loadProgress = 1.0;
+            timer.cancel();
+          }
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+
     final stopwatch = Stopwatch()..start();
     
+    // Check services in parallel if possible, but for splash effect we wait a bit
+    await Future.delayed(const Duration(milliseconds: 2000));
+
     final elapsed = stopwatch.elapsedMilliseconds;
     if (elapsed < _minSplashTime) {
       await Future.delayed(Duration(milliseconds: _minSplashTime - elapsed));
@@ -102,7 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with WidgetsBinding
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.location_off, size: 48, color: DesignTokens.signalRed),
+                const Icon(Icons.location_off, size: 48, color: DesignTokens.signalRed),
                 const SizedBox(height: 16),
                 Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 8),
@@ -170,48 +189,65 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with WidgetsBinding
         children: [
           const LiquidBackground(),
           
+          // Central Liquid Orb Effect
           Center(
-            child: const LiquidOrb(size: 350)
-                .animate()
-                .fadeIn(duration: 1000.ms)
-                .scale(duration: 1500.ms, curve: Curves.elasticOut),
+            child: const LiquidOrb(size: 300)
+                .animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.1, 1.1), duration: 2000.ms, curve: Curves.easeInOut),
           ),
 
+          // Loading Text & Progress
           Positioned(
             bottom: 100,
             left: 0,
             right: 0,
-            child: Center(
-              child: GlassPanel.pill(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                blur: 20,
-                backgroundColor: Colors.white.withOpacity(0.1),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            child: Column(
+              children: [
+                GlassPanel.pill(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  blur: 20,
+                  backgroundColor: Colors.white.withOpacity(0.05),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                       SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: _loadProgress,
+                          valueColor: const AlwaysStoppedAnimation<Color>(DesignTokens.liquidBlue),
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      _statusMessage,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 12,
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(width: 16),
+                      Text(
+                        _statusMessage,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 12,
+                          letterSpacing: 3,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.5, end: 0),
+                
+                const SizedBox(height: 20),
+                
+                // Version
+                Text(
+                  "V 1.0.0 // LIQUID GLASS",
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.3),
+                    fontSize: 10,
+                    letterSpacing: 2,
+                  ),
+                ).animate().fadeIn(delay: 1000.ms),
+              ],
             ),
-          ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.5, end: 0),
+          ),
         ],
       ),
     );
