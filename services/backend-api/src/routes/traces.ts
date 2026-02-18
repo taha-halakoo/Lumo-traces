@@ -5,6 +5,8 @@ import { requireAuth } from '../middleware/auth';
 export async function traceRoutes(fastify: FastifyInstance) {
   // Public / Semi-public
   fastify.get('/nearby', { preHandler: [requireAuth] }, TraceController.getNearby);
+  fastify.get('/bounds', { preHandler: [requireAuth] }, TraceController.getInBounds);
+  fastify.get('/search', { preHandler: [requireAuth] }, TraceController.search);
   fastify.get('/feed', { preHandler: [requireAuth] }, TraceController.getFeed);
   fastify.get('/discovery', { preHandler: [requireAuth] }, TraceController.getDiscovery);
   fastify.get('/:id', { preHandler: [requireAuth] }, TraceController.getDetails);

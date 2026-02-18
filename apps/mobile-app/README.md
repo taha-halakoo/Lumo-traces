@@ -1,4 +1,4 @@
-# traces_mobile
+# Lumo
 
 A new Flutter project.
 

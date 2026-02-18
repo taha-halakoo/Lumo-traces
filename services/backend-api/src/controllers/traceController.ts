@@ -35,6 +35,19 @@ const infectSchema = z.object({
     long: z.number()
 });
 
+const boundsSchema = z.object({
+  minLat: z.coerce.number(),
+  maxLat: z.coerce.number(),
+  minLong: z.coerce.number(),
+  maxLong: z.coerce.number()
+});
+
+const searchSchema = z.object({
+  query: z.string().min(1),
+  lat: z.coerce.number().optional().default(0),
+  long: z.coerce.number().optional().default(0)
+});
+
 export class TraceController {
   
   static async getNearby(req: FastifyRequest, reply: FastifyReply) {
@@ -69,6 +82,34 @@ export class TraceController {
     } catch (err) {
         throw err;
     }
+  }
+
+  static async getInBounds(req: FastifyRequest, reply: FastifyReply) {
+    const parseResult = boundsSchema.safeParse(req.query);
+    if (!parseResult.success) {
+      const err = new Error('Invalid bounds');
+      (err as any).statusCode = 400;
+      throw err;
+    }
+    const { minLat, maxLat, minLong, maxLong } = parseResult.data;
+    const user = (req as any).user;
+    
+    const traces = await TraceService.getInBounds(minLat, maxLat, minLong, maxLong, user.id);
+    return reply.send(traces);
+  }
+
+  static async search(req: FastifyRequest, reply: FastifyReply) {
+    const parseResult = searchSchema.safeParse(req.query);
+    if (!parseResult.success) {
+      const err = new Error('Invalid search');
+      (err as any).statusCode = 400;
+      throw err;
+    }
+    const { query, lat, long } = parseResult.data;
+    const user = (req as any).user;
+    
+    const traces = await TraceService.search(query, lat, long, user.id);
+    return reply.send(traces);
   }
 
   static async create(req: FastifyRequest, reply: FastifyReply) {

@@ -25,6 +25,35 @@ class TraceRepository {
     }
   }
 
+  Future<List<dynamic>> getInBounds(double minLat, double maxLat, double minLong, double maxLong) async {
+    try {
+      final response = await _dio.get('/traces/bounds', queryParameters: {
+        'minLat': minLat,
+        'maxLat': maxLat,
+        'minLong': minLong,
+        'maxLong': maxLong,
+      });
+      return response.data as List<dynamic>;
+    } catch (e) {
+      print("Get Bounds Error: $e");
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> search(String query, double lat, double long) async {
+    try {
+      final response = await _dio.get('/traces/search', queryParameters: {
+        'query': query,
+        'lat': lat,
+        'long': long,
+      });
+      return response.data as List<dynamic>;
+    } catch (e) {
+      print("Search Error: $e");
+      return [];
+    }
+  }
+
   Future<Map<String, dynamic>> createTrace(Map<String, dynamic> data) async {
     final response = await _dio.post('/traces', data: data);
     return response.data;

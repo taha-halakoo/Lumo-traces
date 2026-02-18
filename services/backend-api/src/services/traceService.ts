@@ -178,6 +178,31 @@ export class TraceService {
     return data;
   }
 
+  static async getInBounds(minLat: number, maxLat: number, minLong: number, maxLong: number, userId: string) {
+    const { data, error } = await supabase.rpc('get_traces_in_bounds', {
+      min_lat: minLat,
+      min_long: minLong,
+      max_lat: maxLat,
+      max_long: maxLong,
+      requesting_user_id: userId
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async search(query: string, lat: number, long: number, userId: string) {
+    const { data, error } = await supabase.rpc('search_traces', {
+      search_query: query,
+      user_lat: lat,
+      user_long: long,
+      requesting_user_id: userId
+    });
+
+    if (error) throw error;
+    return data;
+  }
+
   static async unlockTrace(traceId: string, userId: string, lat: number, long: number) {
       const { data, error } = await supabase.rpc('check_distance', {
           trace_id: traceId,

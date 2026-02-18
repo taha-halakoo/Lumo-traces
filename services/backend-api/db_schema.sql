@@ -11,6 +11,8 @@ DROP TRIGGER IF EXISTS trigger_auto_mod ON public.reports;
 DROP TRIGGER IF EXISTS trigger_update_mood_ts ON public.profiles;
 
 DROP FUNCTION IF EXISTS get_traces_hybrid;
+DROP FUNCTION IF EXISTS get_traces_in_bounds;
+DROP FUNCTION IF EXISTS search_traces;
 DROP FUNCTION IF EXISTS update_mood_timestamp;
 DROP FUNCTION IF EXISTS check_auto_mod;
 DROP FUNCTION IF EXISTS claim_gold_orb;
@@ -444,6 +446,128 @@ BEGIN
   ORDER BY 
     score DESC
   LIMIT 50;
+END;
+$$;
+
+-- Viewport Bounds Search (Map Panning)
+CREATE OR REPLACE FUNCTION get_traces_in_bounds(
+  min_lat float,
+  min_long float,
+  max_lat float,
+  max_long float,
+  requesting_user_id uuid
+)
+RETURNS TABLE (
+  id uuid,
+  author_id uuid,
+  type public.trace_type,
+  lat float,
+  long float,
+  content_text text,
+  media_url text,
+  hashtags text[],
+  created_at timestamptz,
+  expires_at timestamptz,
+  music_track_id text,
+  profiles jsonb,
+  is_friend boolean
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    t.id,
+    t.author_id,
+    t.type,
+    ST_Y(t.location::geometry) as lat,
+    ST_X(t.location::geometry) as long,
+    t.content_text,
+    t.media_url,
+    t.hashtags,
+    t.created_at,
+    t.expires_at,
+    t.music_track_id,
+    jsonb_build_object(
+      'username', p.username,
+      'avatar_url', p.avatar_url
+    ) as profiles,
+    EXISTS (
+        SELECT 1 FROM public.friendships f
+        WHERE (f.user_id_1 = requesting_user_id AND f.user_id_2 = t.author_id)
+           OR (f.user_id_1 = t.author_id AND f.user_id_2 = requesting_user_id)
+        AND f.status = 'accepted'
+    ) as is_friend
+  FROM
+    public.traces t
+  JOIN
+    public.profiles p ON t.author_id = p.id
+  JOIN
+    public.user_settings s ON p.id = s.user_id
+  WHERE
+    t.location && ST_MakeEnvelope(min_long, min_lat, max_long, max_lat, 4326)
+    AND (t.expires_at IS NULL OR t.expires_at > now())
+    AND t.is_hidden = false
+    AND t.deleted_at IS NULL
+    AND s.incognito_mode = false
+  LIMIT 100;
+END;
+$$;
+
+-- Text/Tag Search
+CREATE OR REPLACE FUNCTION search_traces(
+  search_query text,
+  user_lat float,
+  user_long float,
+  requesting_user_id uuid
+)
+RETURNS TABLE (
+  id uuid,
+  author_id uuid,
+  type public.trace_type,
+  lat float,
+  long float,
+  content_text text,
+  media_url text,
+  hashtags text[],
+  created_at timestamptz,
+  profiles jsonb,
+  distance_meters float
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    t.id,
+    t.author_id,
+    t.type,
+    ST_Y(t.location::geometry) as lat,
+    ST_X(t.location::geometry) as long,
+    t.content_text,
+    t.media_url,
+    t.hashtags,
+    t.created_at,
+    jsonb_build_object(
+      'username', p.username,
+      'avatar_url', p.avatar_url
+    ) as profiles,
+    ST_Distance(t.location, ST_SetSRID(ST_MakePoint(user_long, user_lat), 4326)) as distance_meters
+  FROM
+    public.traces t
+  JOIN
+    public.profiles p ON t.author_id = p.id
+  JOIN
+    public.user_settings s ON p.id = s.user_id
+  WHERE
+    (t.content_text ILIKE '%' || search_query || '%' OR p.username ILIKE '%' || search_query || '%')
+    AND (t.expires_at IS NULL OR t.expires_at > now())
+    AND t.is_hidden = false
+    AND t.deleted_at IS NULL
+    AND s.incognito_mode = false
+  ORDER BY
+    distance_meters ASC
+  LIMIT 20;
 END;
 $$;
 
