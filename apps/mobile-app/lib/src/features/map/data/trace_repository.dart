@@ -42,10 +42,12 @@ class TraceRepository {
 
   Future<List<dynamic>> search(String query, double lat, double long) async {
     try {
-      final response = await _dio.get('/traces/search', queryParameters: {
-        'query': query,
+      // Use the 'nearby' endpoint which supports text search (AI)
+      final response = await _dio.get('/traces/nearby', queryParameters: {
+        'searchText': query,
         'lat': lat,
         'long': long,
+        'radius': 5000, // Widen search radius
       });
       return response.data as List<dynamic>;
     } catch (e) {

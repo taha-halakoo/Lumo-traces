@@ -154,16 +154,18 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, i) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        child: GlassPanel(
+                        child: GestureDetector(
                           onTap: () => context.push('/profile/${recs[i]['id']}'),
-                          child: Row(
-                            children: [
-                              CircleAvatar(backgroundImage: NetworkImage(recs[i]['avatar_url'] ?? "https://api.dicebear.com/7.x/bottts/svg?seed=${recs[i]['username']}")),
-                              const SizedBox(width: 16),
-                              Text(recs[i]['username'] ?? 'Explorer', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              const Spacer(),
-                              const Icon(Icons.chevron_right, color: Colors.white24),
-                            ],
+                          child: GlassPanel(
+                            child: Row(
+                              children: [
+                                CircleAvatar(backgroundImage: NetworkImage(recs[i]['avatar_url'] ?? "https://api.dicebear.com/7.x/bottts/svg?seed=${recs[i]['username']}")),
+                                const SizedBox(width: 16),
+                                Text(recs[i]['username'] ?? 'Explorer', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                const Spacer(),
+                                const Icon(Icons.chevron_right, color: Colors.white24),
+                              ],
+                            ),
                           ),
                         ),
                       ),

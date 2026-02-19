@@ -136,64 +136,66 @@ class LeaderboardScreen extends ConsumerWidget {
                         
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: GlassPanel(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            backgroundColor: isTop3 
-                                ? DesignTokens.liquidBlue.withOpacity(0.15 - (index * 0.03)) 
-                                : Colors.white.withOpacity(0.05),
-                            radius: 16,
-                            border: isTop3 ? Border.all(color: DesignTokens.liquidBlue.withOpacity(0.4), width: 1.5) : null,
+                          child: GestureDetector(
                             onTap: () => context.push('/profile/${user['id']}'),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 35,
-                                  child: Text(
-                                    "#$rank", 
-                                    style: TextStyle(
-                                      color: isTop3 ? DesignTokens.liquidBlue : Colors.white54,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18
+                            child: GlassPanel(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              backgroundColor: isTop3 
+                                  ? DesignTokens.liquidBlue.withOpacity(0.15 - (index * 0.03)) 
+                                  : Colors.white.withOpacity(0.05),
+                              radius: 16,
+                              border: isTop3 ? Border.all(color: DesignTokens.liquidBlue.withOpacity(0.4), width: 1.5) : null,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 35,
+                                    child: Text(
+                                      "#$rank", 
+                                      style: TextStyle(
+                                        color: isTop3 ? DesignTokens.liquidBlue : Colors.white54,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Hero(
-                                  tag: 'user_avatar_${user['id']}',
-                                  child: CircleAvatar(
-                                    radius: 22,
-                                    backgroundImage: NetworkImage(user['avatar_url'] ?? 'https://i.pravatar.cc/150'),
-                                    backgroundColor: Colors.white10,
+                                  const SizedBox(width: 8),
+                                  Hero(
+                                    tag: 'user_avatar_${user['id']}',
+                                    child: CircleAvatar(
+                                      radius: 22,
+                                      backgroundImage: NetworkImage(user['avatar_url'] ?? 'https://i.pravatar.cc/150'),
+                                      backgroundColor: Colors.white10,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          user['username'] ?? 'Anonymous',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
+                                        if (isTop3)
+                                          Text(
+                                            _getRankTitle(rank),
+                                            style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.w900),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                        user['username'] ?? 'Anonymous',
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                        "$score",
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
                                       ),
-                                      if (isTop3)
-                                        Text(
-                                          _getRankTitle(rank),
-                                          style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.w900),
-                                        ),
+                                      const Text("REP", style: TextStyle(color: Colors.white38, fontSize: 10)),
                                     ],
                                   ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      "$score",
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                    ),
-                                    const Text("REP", style: TextStyle(color: Colors.white38, fontSize: 10)),
-                                  ],
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ).animate().fadeIn(delay: (index * 50).ms).slideX(begin: 0.1, end: 0);

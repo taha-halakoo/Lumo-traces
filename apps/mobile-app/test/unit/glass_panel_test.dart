@@ -9,9 +9,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: GlassPanel(
+          body: GestureDetector(
             onTap: () => tapped = true,
-            child: const Text('Hello Glass'),
+            child: const GlassPanel(
+              child: Text('Hello Glass'),
+            ),
           ),
         ),
       ),

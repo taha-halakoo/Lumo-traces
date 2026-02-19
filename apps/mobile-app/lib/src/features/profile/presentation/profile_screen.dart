@@ -172,30 +172,32 @@ class ProfileScreen extends ConsumerWidget {
                         final trace = traces[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          child: GlassPanel(
-                            padding: const EdgeInsets.all(16),
-                            backgroundColor: Colors.white.withOpacity(0.05),
-                            radius: 16,
+                          child: GestureDetector(
                             onTap: () => context.push('/trace/${trace['id']}'),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40, height: 40,
-                                  decoration: BoxDecoration(color: DesignTokens.liquidBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                                  child: const Icon(Icons.location_on, color: DesignTokens.liquidBlue, size: 20),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(trace['content_text'] ?? 'Untitled Trace', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                      Text(trace['type'] ?? 'STANDARD', style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                                    ],
+                            child: GlassPanel(
+                              padding: const EdgeInsets.all(16),
+                              backgroundColor: Colors.white.withOpacity(0.05),
+                              radius: 16,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40, height: 40,
+                                    decoration: BoxDecoration(color: DesignTokens.liquidBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                                    child: const Icon(Icons.location_on, color: DesignTokens.liquidBlue, size: 20),
                                   ),
-                                ),
-                                Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.2)),
-                              ],
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(trace['content_text'] ?? 'Untitled Trace', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        Text(trace['type'] ?? 'STANDARD', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.2)),
+                                ],
+                              ),
                             ),
                           ),
                         ).animate().fadeIn(delay: (index * 30).ms).slideX(begin: 0.1);

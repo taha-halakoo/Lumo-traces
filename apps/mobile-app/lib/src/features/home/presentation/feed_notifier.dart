@@ -19,33 +19,43 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
   int _page = 1;
   bool _hasMore = true;
   bool _isLoadingMore = false;
+  RealtimeChannel? _channel;
 
   FeedNotifier(this._dio, this._ref, this.filter) : super(const AsyncValue.loading()) {
     loadInitial();
     _setupRealtime();
   }
 
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
   void _setupRealtime() {
-    Supabase.instance.client
+    _channel = Supabase.instance.client
         .channel('public:traces')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'traces',
           callback: (payload) {
+            if (!mounted) return;
             final newTrace = payload.newRecord;
             // Only insert if matches filter
             if (filter == 'All' || (newTrace['type'] as String?)?.toUpperCase() == filter.toUpperCase()) {
                _fetchAndInsertNew(newTrace['id']);
             }
           },
-        )
-        .subscribe();
+        );
+    _channel!.subscribe();
   }
 
   Future<void> _fetchAndInsertNew(String id) async {
     try {
       final response = await _dio.get('/traces/$id');
+      if (!mounted) return;
+      
       final fullTrace = response.data;
       if (state.hasValue) {
         state = AsyncValue.data([fullTrace, ...state.value!]);
@@ -63,11 +73,13 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
       if (filter != 'All') query['type'] = filter;
       
       final response = await _dio.get('/traces/feed', queryParameters: query);
+      if (!mounted) return;
+
       final List data = response.data;
       state = AsyncValue.data(data);
       if (data.length < 15) _hasMore = false;
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
     }
   }
 
@@ -81,6 +93,8 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
       if (filter != 'All') query['type'] = filter;
       
       final response = await _dio.get('/traces/feed', queryParameters: query);
+      if (!mounted) return;
+
       final List newData = response.data;
       
       if (newData.isEmpty) {
@@ -92,7 +106,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<dynamic>>> {
     } catch (_) {
       _page--;
     } finally {
-      _isLoadingMore = false;
+      if (mounted) _isLoadingMore = false;
     }
   }
 }

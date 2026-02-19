@@ -135,20 +135,25 @@ class PublicProfileScreen extends ConsumerWidget {
                             final trace = traces[index];
                             return Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
-                              child: GlassPanel(
-                                padding: const EdgeInsets.all(16),
-                                backgroundColor: Colors.white.withOpacity(0.05),
-                                onTap: () => context.push('/trace/${trace['id']}'),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.location_on, color: DesignTokens.liquidBlue.withOpacity(0.5), size: 18),
-                                    const SizedBox(width: 16),
-                                    Expanded(child: Text(trace['content_text'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13))),
-                                    Text("2d ago", style: TextStyle(color: Colors.white24, fontSize: 10)),
-                                  ],
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticService.selectionClick();
+                                  context.push('/trace/${trace['id']}');
+                                },
+                                child: GlassPanel(
+                                  padding: const EdgeInsets.all(16),
+                                  backgroundColor: Colors.white.withOpacity(0.05),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.location_on, color: DesignTokens.liquidBlue.withOpacity(0.5), size: 18),
+                                      const SizedBox(width: 16),
+                                      Expanded(child: Text(trace['content_text'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13))),
+                                      Text("2d ago", style: TextStyle(color: Colors.white24, fontSize: 10)),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            );
+                            ).animate().fadeIn(delay: (index * 30).ms).slideX(begin: 0.1);
                           },
                           childCount: traces.length,
                         ),

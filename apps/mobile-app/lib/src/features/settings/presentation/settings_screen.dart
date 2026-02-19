@@ -243,11 +243,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }) {
     return GlassPanel(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: EdgeInsets.zero, // Padding handled by ListTile
       radius: 12,
-      onTap: onTap,
       child: ListTile(
-        contentPadding: EdgeInsets.zero,
+        onTap: () {
+          if (onTap != null) {
+            HapticService.selectionClick();
+            onTap();
+          }
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Icon(icon, color: color),
         title: Text(title, style: TextStyle(color: color)),
         trailing: Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white.withOpacity(0.2)),

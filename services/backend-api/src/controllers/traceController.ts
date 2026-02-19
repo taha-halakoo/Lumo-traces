@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { TraceService } from '../services/traceService';
-import { RankingService } from '../services/rankingService';
+import { VectorSearchService } from '../services/vectorSearchService';
 import { GamificationService } from '../services/gamificationService';
 
 // Zod Schemas
@@ -67,7 +67,7 @@ export class TraceController {
         let moodVector: number[] = [];
 
         if (searchText) {
-            moodVector = await RankingService.generateEmbedding(searchText);
+            moodVector = await VectorSearchService.generateEmbedding(searchText);
         }
 
         const traces = await TraceService.getNearbyHybrid({
@@ -128,7 +128,7 @@ export class TraceController {
     try {
         let embedding: number[] = [];
         if (body.text) {
-             embedding = await RankingService.generateEmbedding(body.text);
+             embedding = await VectorSearchService.generateEmbedding(body.text);
         }
 
         const trace = await TraceService.createTrace(user.id, { ...body, embedding });

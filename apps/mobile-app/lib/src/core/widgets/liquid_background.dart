@@ -25,20 +25,22 @@ class _LiquidBackgroundState extends State<LiquidBackground> {
   }
 
   void _initSensors() {
-    _gyroSubscription = gyroscopeEvents.listen((GyroscopeEvent event) {
-      // Integrate gyro data for position (simplified)
-      _targetX += event.y * 5.0; // Tilt Y controls X pos
-      _targetY += event.x * 5.0; // Tilt X controls Y pos
+    // Used gyroscopeEventStream() instead of deprecated gyroscopeEvents
+    _gyroSubscription = gyroscopeEventStream().listen((GyroscopeEvent event) {
+      // Integrate gyro data for position
+      // Inverted Y because tilting down (positive Y gyro) should move background up (negative Y offset)
+      _targetX += event.y * 8.0; 
+      _targetY += event.x * 8.0; 
       
       // Clamp to prevent drifting too far
-      _targetX = _targetX.clamp(-50.0, 50.0);
-      _targetY = _targetY.clamp(-50.0, 50.0);
+      _targetX = _targetX.clamp(-80.0, 80.0);
+      _targetY = _targetY.clamp(-80.0, 80.0);
       
       if (mounted) {
         setState(() {
           // Smooth interpolation
-          _xOffset += (_targetX - _xOffset) * 0.1;
-          _yOffset += (_targetY - _yOffset) * 0.1;
+          _xOffset += (_targetX - _xOffset) * 0.05;
+          _yOffset += (_targetY - _yOffset) * 0.05;
         });
       }
     });
@@ -71,7 +73,7 @@ class _LiquidBackgroundState extends State<LiquidBackground> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      DesignTokens.liquidBlue.withOpacity(0.4),
+                      DesignTokens.liquidBlue.withValues(alpha: 0.4),
                       Colors.transparent,
                     ],
                   ),
@@ -95,7 +97,7 @@ class _LiquidBackgroundState extends State<LiquidBackground> {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      DesignTokens.electricPurple.withOpacity(0.3),
+                      DesignTokens.electricPurple.withValues(alpha: 0.3),
                       Colors.transparent,
                     ],
                   ),
@@ -105,9 +107,29 @@ class _LiquidBackgroundState extends State<LiquidBackground> {
                .move(duration: 7.seconds, begin: const Offset(0, 0), end: const Offset(-50, -50)),
             ),
           ),
-
-          // Noise/Texture Overlay (Optional polish)
-          // You could add a subtle grain image here with opacity 0.05
+          
+          // Neon Green Highlight (Mid Layer - Opposite movement)
+          Positioned(
+            top: 200,
+            right: -50,
+            child: Transform.translate(
+              offset: Offset(-_xOffset * 0.8, -_yOffset * 0.8),
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      DesignTokens.neonGreen.withValues(alpha: 0.15),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+               .scale(duration: 9.seconds, begin: const Offset(0.8, 0.8), end: const Offset(1.1, 1.1)),
+            ),
+          ),
         ],
       ),
     );

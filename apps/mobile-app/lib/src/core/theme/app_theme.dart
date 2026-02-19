@@ -24,7 +24,7 @@ class AppTheme {
       iconTheme: const IconThemeData(color: Colors.white70),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: DesignTokens.liquidBlue.withOpacity(0.8),
+          backgroundColor: DesignTokens.liquidBlue.withValues(alpha: 0.8),
           foregroundColor: Colors.white,
           elevation: 0,
           textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
@@ -35,11 +35,11 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: DesignTokens.glassLightBase.withOpacity(DesignTokens.opacityGlassLow),
+        color: DesignTokens.glassLightBase.withValues(alpha: DesignTokens.opacityGlassLow),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(DesignTokens.radiusMedium)),
-          side: BorderSide(color: Colors.white.withOpacity(DesignTokens.opacityBorder), width: 1),
+          side: BorderSide(color: Colors.white.withValues(alpha: DesignTokens.opacityBorder), width: 1),
         ),
       ),
     );

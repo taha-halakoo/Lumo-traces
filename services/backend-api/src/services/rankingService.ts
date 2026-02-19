@@ -1,5 +1,5 @@
-import { pipeline } from '@xenova/transformers';
 import { similarity } from 'ml-distance';
+import { VectorSearchService } from './vectorSearchService';
 
 // Pure Math & Logic Only - No Database Calls
 
@@ -22,20 +22,13 @@ export class RankingService {
   private static DISTANCE_WEIGHT = 0.3;
   private static RECENCY_WEIGHT = 0.1;
 
-  private static embedder: any = null;
-
+  // Delegate to VectorSearchService
   static async initAI() {
-    if (!this.embedder) {
-      console.log('Loading local AI model (all-MiniLM-L6-v2)...');
-      this.embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-      console.log('AI Model loaded.');
-    }
+    await VectorSearchService.initAI();
   }
 
   static async generateEmbedding(text: string): Promise<number[]> {
-    if (!this.embedder) await this.initAI();
-    const output = await this.embedder(text, { pooling: 'mean', normalize: true });
-    return Array.from(output.data);
+    return await VectorSearchService.generateEmbedding(text);
   }
 
   static calculateScore(user: VectorProfile, trace: TraceVector, distanceMeters: number): number {
