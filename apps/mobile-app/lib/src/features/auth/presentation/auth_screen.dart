@@ -1,5 +1,6 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,13 +23,16 @@ class _AuthScreenState extends State<AuthScreen> {
   // Form Controllers
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
   final _usernameCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
   
   DateTime? _selectedBirthdate;
+  String _selectedGender = 'Not Specified';
   String _selectedPersonality = 'Explorer';
 
+  final List<String> _genders = ['Male', 'Female', 'Non-Binary', 'Other', 'Not Specified'];
   final List<String> _personalities = [
     'Explorer', 'Visionary', 'Guardian', 'Rebel', 'Architect', 'Mystic'
   ];
@@ -38,6 +42,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _pageController.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     _usernameCtrl.dispose();
     _nameCtrl.dispose();
     _bioCtrl.dispose();
@@ -55,6 +60,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _handleLogin() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
+      _showError("Please enter email and password");
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signInWithPassword(
@@ -90,10 +99,12 @@ class _AuthScreenState extends State<AuthScreen> {
       await Supabase.instance.client.auth.signUp(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text.trim(),
+        emailRedirectTo: 'io.supabase.traces://login-callback/',
         data: {
           'username': _usernameCtrl.text.trim(),
           'full_name': _nameCtrl.text.trim(),
           'birthdate': _selectedBirthdate?.toIso8601String(),
+          'gender': _selectedGender,
           'bio': _bioCtrl.text.trim(),
           'personality_type': _selectedPersonality,
           'avatar_url': 'https://api.dicebear.com/7.x/bottts/svg?seed=${_usernameCtrl.text.trim()}',
@@ -113,6 +124,7 @@ class _AuthScreenState extends State<AuthScreen> {
         content: Text(message),
         backgroundColor: DesignTokens.signalRed.withOpacity(0.8),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -149,15 +161,14 @@ class _AuthScreenState extends State<AuthScreen> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        resizeToAvoidBottomInset: false, // Handle locally or use scroll
+        resizeToAvoidBottomInset: true,
         body: Stack(
           children: [
             const LiquidBackground(),
             
-            // Floating Ambient Particles (Extra Animation)
+            // Floating Ambient Particles
             Positioned(
-              top: 100,
-              right: -50,
+              top: 100, right: -50,
               child: Container(
                 width: 150, height: 150,
                 decoration: BoxDecoration(
@@ -170,8 +181,7 @@ class _AuthScreenState extends State<AuthScreen> {
                .scale(begin: const Offset(1,1), end: const Offset(1.2, 1.2), duration: 5.seconds),
             ),
             Positioned(
-              bottom: 200,
-              left: -30,
+              bottom: 200, left: -30,
               child: Container(
                 width: 100, height: 100,
                 decoration: BoxDecoration(
@@ -187,7 +197,6 @@ class _AuthScreenState extends State<AuthScreen> {
             SafeArea(
               child: Column(
                 children: [
-                  // Logo / Title Area
                   const SizedBox(height: 40),
                   Text(
                     "TRACES",
@@ -234,13 +243,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 color: Colors.black54,
                 child: Center(
                   child: GlassPanel(
-                    width: 100,
-                    height: 100,
-                    blur: 20,
+                    width: 100, height: 100, blur: 20,
                     child: const Center(child: CircularProgressIndicator(color: Colors.white)),
                   ),
                 ),
-              ),
+              ).animate().fadeIn(),
           ],
         ),
       ),
@@ -252,9 +259,9 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _glassButton("LOGIN", () => _nextPage(1)), // Go to Login
+          _glassButton("LOGIN", () => _nextPage(1)),
           const SizedBox(height: 20),
-          _glassButton("CREATE ACCOUNT", () => _nextPage(2), isPrimary: true), // Go to Sign Up
+          _glassButton("CREATE ACCOUNT", () => _nextPage(2), isPrimary: true),
           const SizedBox(height: 40),
           _buildOAuthRow(),
         ],
@@ -288,16 +295,26 @@ class _AuthScreenState extends State<AuthScreen> {
         _glassTextField("EMAIL", _emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 16),
         _glassTextField("PASSWORD", _passCtrl, isPassword: true, icon: Icons.lock_outline),
+        const SizedBox(height: 16),
+        _glassTextField("CONFIRM PASSWORD", _confirmPassCtrl, isPassword: true, icon: Icons.lock_reset),
         const SizedBox(height: 32),
         _glassButton("NEXT", () {
-          if (_emailCtrl.text.isNotEmpty && _passCtrl.text.isNotEmpty) {
-            _nextPage(3);
-          } else {
-            _showError("Credentials required");
+          if (_emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _confirmPassCtrl.text.isEmpty) {
+            _showError("All fields are required");
+            return;
           }
+          if (_passCtrl.text != _confirmPassCtrl.text) {
+            _showError("Passwords do not match");
+            return;
+          }
+          if (_passCtrl.text.length < 6) {
+            _showError("Password must be at least 6 characters");
+            return;
+          }
+          FocusManager.instance.primaryFocus?.unfocus();
+          _nextPage(3);
         }, isPrimary: true),
         const SizedBox(height: 24),
-        _buildOAuthRow(),
         TextButton(
           onPressed: () => _nextPage(0),
           child: Text("ABORT", style: TextStyle(color: Colors.white.withOpacity(0.5))),
@@ -338,14 +355,9 @@ class _AuthScreenState extends State<AuthScreen> {
     return GestureDetector(
       onTap: onTap,
       child: GlassPanel(
-        width: 60,
-        height: 60,
-        padding: EdgeInsets.zero,
-        radius: 20,
+        width: 60, height: 60, padding: EdgeInsets.zero, radius: 20,
         backgroundColor: Colors.white.withOpacity(0.05),
-        child: Center(
-          child: FaIcon(icon, color: Colors.white, size: 24),
-        ),
+        child: Center(child: FaIcon(icon, color: Colors.white, size: 24)),
       ),
     ).animate().scale(duration: 200.ms, curve: Curves.easeInOut);
   }
@@ -354,6 +366,35 @@ class _AuthScreenState extends State<AuthScreen> {
     return _buildFormContainer(
       title: "PROFILE DETAILS",
       children: [
+        // Profile Picture Placeholder
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              // In future: pick image from gallery
+            },
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  width: 80, height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                    border: Border.all(color: DesignTokens.liquidBlue.withOpacity(0.5), width: 2),
+                  ),
+                  child: Icon(Icons.person, size: 40, color: Colors.white.withOpacity(0.5)),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: DesignTokens.liquidBlue),
+                  child: const Icon(Icons.add_a_photo, size: 14, color: Colors.white),
+                ),
+              ],
+            ),
+          ).animate().scale(delay: 200.ms),
+        ),
+        const SizedBox(height: 24),
         _glassTextField("USERNAME", _usernameCtrl, icon: Icons.alternate_email),
         const SizedBox(height: 16),
         _glassTextField("FULL NAME", _nameCtrl, icon: Icons.person_outline, textCapitalization: TextCapitalization.words),
@@ -368,6 +409,35 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        // Gender Dropdown
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("GENDER", style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.9), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedGender,
+                  dropdownColor: DesignTokens.glassDarkBase,
+                  isExpanded: true,
+                  style: const TextStyle(color: Colors.white),
+                  items: _genders.map((String value) {
+                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: (newValue) => setState(() => _selectedGender = newValue!),
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -377,12 +447,13 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Text("BACK", style: TextStyle(color: Colors.white.withOpacity(0.5))),
             ),
             _glassButton("NEXT", () {
-              if (_usernameCtrl.text.isNotEmpty && _selectedBirthdate != null) {
-                _nextPage(4);
-              } else {
-                _showError("Identity required");
+              if (_usernameCtrl.text.isEmpty || _selectedBirthdate == null) {
+                _showError("Identity and birthdate required");
+                return;
               }
-            }, isPrimary: true),
+              FocusManager.instance.primaryFocus?.unfocus();
+              _nextPage(4);
+            }, isPrimary: true, width: 120),
           ],
         ),
       ],
@@ -393,52 +464,60 @@ class _AuthScreenState extends State<AuthScreen> {
     return _buildFormContainer(
       title: "ABOUT YOU",
       children: [
-        Container(
-          height: 120,
-          decoration: BoxDecoration(
-             color: Colors.white.withOpacity(0.05),
-             borderRadius: BorderRadius.circular(15),
-             border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: TextField(
-            controller: _bioCtrl,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: "BIO / MANIFESTO...",
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("BIO", style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.9), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                 color: Colors.black.withOpacity(0.2),
+                 borderRadius: BorderRadius.circular(12),
+                 border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: TextField(
+                controller: _bioCtrl,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: "YOUR MANIFESTO...",
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
         const SizedBox(height: 16),
-        // Custom Dropdown for Personality
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-             color: Colors.white.withOpacity(0.05),
-             borderRadius: BorderRadius.circular(15),
-             border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedPersonality,
-              dropdownColor: DesignTokens.glassDarkBase,
-              isExpanded: true,
-              style: const TextStyle(color: Colors.white),
-              items: _personalities.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() => _selectedPersonality = newValue!);
-              },
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("ARCHETYPE", style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.9), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                 color: Colors.black.withOpacity(0.2),
+                 borderRadius: BorderRadius.circular(12),
+                 border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedPersonality,
+                  dropdownColor: DesignTokens.glassDarkBase,
+                  isExpanded: true,
+                  style: const TextStyle(color: Colors.white),
+                  items: _personalities.map((String value) {
+                    return DropdownMenuItem<String>(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: (newValue) => setState(() => _selectedPersonality = newValue!),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
         const SizedBox(height: 32),
         Row(
@@ -448,7 +527,7 @@ class _AuthScreenState extends State<AuthScreen> {
               onPressed: () => _nextPage(3),
               child: Text("BACK", style: TextStyle(color: Colors.white.withOpacity(0.5))),
             ),
-            _glassButton("INITIALIZE", _handleSignUp, isPrimary: true),
+            _glassButton("INITIALIZE", _handleSignUp, isPrimary: true, width: 140),
           ],
         ),
       ],
@@ -458,10 +537,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildFormContainer({required String title, required List<Widget> children}) {
     return Center(
       child: GlassPanel(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(32),
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.all(28),
         blur: 30,
-        backgroundColor: Colors.white.withOpacity(0.08), // Slightly more opacity for form
+        backgroundColor: Colors.white.withOpacity(0.08),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -481,7 +560,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
         ),
       ),
-    ).animate().fadeIn().slideY(begin: 0.1, end: 0);
+    ).animate(key: ValueKey(_currentStep)).fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0, curve: Curves.easeOut);
   }
 
   Widget _glassTextField(String label, TextEditingController controller, {bool isPassword = false, IconData? icon, TextInputType? keyboardType, TextCapitalization textCapitalization = TextCapitalization.none}) {
@@ -490,12 +569,7 @@ class _AuthScreenState extends State<AuthScreen> {
       children: [
         Text(
           label, 
-          style: TextStyle(
-            color: DesignTokens.liquidBlue.withOpacity(0.9), 
-            fontSize: 10, 
-            letterSpacing: 2, 
-            fontWeight: FontWeight.bold
-          )
+          style: TextStyle(color: DesignTokens.liquidBlue.withOpacity(0.9), fontSize: 10, letterSpacing: 2, fontWeight: FontWeight.bold)
         ),
         const SizedBox(height: 8),
         Container(
@@ -521,11 +595,14 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _glassButton(String text, VoidCallback onPressed, {bool isPrimary = false}) {
+  Widget _glassButton(String text, VoidCallback onPressed, {bool isPrimary = false, double? width}) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onPressed();
+      },
       child: Container(
-        width: double.infinity,
+        width: width ?? double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           gradient: isPrimary 
@@ -533,25 +610,17 @@ class _AuthScreenState extends State<AuthScreen> {
             : null,
           color: isPrimary ? null : Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: isPrimary ? DesignTokens.liquidBlue.withOpacity(0.5) : Colors.white.withOpacity(0.2)
-          ),
-          boxShadow: isPrimary 
-            ? [BoxShadow(color: DesignTokens.liquidBlue.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 5))]
-            : [],
+          border: Border.all(color: isPrimary ? DesignTokens.liquidBlue.withOpacity(0.5) : Colors.white.withOpacity(0.2)),
+          boxShadow: isPrimary ? [BoxShadow(color: DesignTokens.liquidBlue.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 5))] : [],
         ),
         child: Center(
           child: Text(
             text,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 14),
           ),
         ),
       ),
     );
   }
 }
+

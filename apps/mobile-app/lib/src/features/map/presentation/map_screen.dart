@@ -7,9 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:traces_mobile/src/core/theme/design_tokens.dart';
 import 'package:traces_mobile/src/core/ui/glass.dart';
-import 'package:traces_mobile/src/core/ui/animated_glass_button.dart';
 import 'package:traces_mobile/src/core/services/haptic_service.dart';
-import 'package:traces_mobile/src/core/ui/hex_menu.dart'; // Import HexMenu
+import 'package:traces_mobile/src/core/ui/hex_menu.dart';
 import 'package:traces_mobile/src/features/home/presentation/feed_drawer.dart';
 import 'package:traces_mobile/src/features/map/presentation/map_providers.dart';
 import 'package:traces_mobile/src/features/map/presentation/map_view_model.dart';
@@ -26,49 +25,27 @@ class MapScreen extends ConsumerStatefulWidget {
 
 class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
-  final TextEditingController _searchController = TextEditingController();
-  Timer? _debounce;
   bool _isMoving = false;
-  bool _isHexMenuOpen = false; // Hex Menu State
-
-  @override
-  void initState() {
-    super.initState();
-    // Initial fetch handled by provider or map event
-  }
+  bool _isHexMenuOpen = false;
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _debounce?.cancel();
     super.dispose();
   }
 
-  void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), () {
-      ref.read(mapViewModelProvider.notifier).updateSearch(query);
-      if (query.isNotEmpty) HapticService.selectionClick();
-    });
-  }
-
-  // Handle map movement haptics
   int _lastHapticTime = 0;
   void _handleMapEvent(MapEvent event) {
-    // Entrance/Exit haptics - Medium Impact per user request
     if (event is MapEventMoveStart || event is MapEventRotateStart) {
        HapticService.mediumImpact();
        FocusManager.instance.primaryFocus?.unfocus();
-       _isMoving = true;
+       setState(() => _isMoving = true);
     } else if (event is MapEventMoveEnd || event is MapEventRotateEnd) {
        HapticService.mediumImpact();
-       _isMoving = false;
-    } 
-    // Textured scrolling haptics (throttled)
-    else if (_isMoving && (event is MapEventMove || event is MapEventRotate)) {
+       setState(() => _isMoving = false);
+    } else if (_isMoving && (event is MapEventMove || event is MapEventRotate)) {
        final now = DateTime.now().millisecondsSinceEpoch;
-       if (now - _lastHapticTime > 150) { // Throttle: Only buzz every 150ms
-         HapticService.lightImpact(); // Keep texture subtle
+       if (now - _lastHapticTime > 150) {
+         HapticService.lightImpact();
          _lastHapticTime = now;
        }
     }
@@ -79,7 +56,6 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
     final mapState = ref.watch(mapViewModelProvider);
     final userLocAsync = ref.watch(userLocationProvider);
 
-    // Sync map center if a place is selected and we aren't moving it manually
     ref.listen(mapViewModelProvider, (previous, next) {
       if (next.selectedPlace != null && next.selectedPlace != previous?.selectedPlace) {
         _mapController.move(next.selectedPlace!.location, 16.0);
@@ -93,24 +69,19 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
     }).toList();
 
     return Scaffold(
-      resizeToAvoidBottomInset: false, // Map shouldn't resize for keyboard
+      extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // 1. MAP LAYER
+          // 1. IMMERSIVE MAP
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: mapState.center == const LatLng(0, 0) 
-                  ? const LatLng(35.6895, 139.6917) // Tokyo Default
-                  : mapState.center,
+              initialCenter: mapState.center == const LatLng(0, 0) ? const LatLng(35.6895, 139.6917) : mapState.center,
               initialZoom: 16.0,
               minZoom: 3.0,
               maxZoom: 18.0,
-              onMapReady: () {
-                // Initialize bounds
-                 final bounds = _mapController.camera.visibleBounds;
-                 ref.read(mapViewModelProvider.notifier).updateBounds(bounds);
-              },
+              onMapReady: () => ref.read(mapViewModelProvider.notifier).updateBounds(_mapController.camera.visibleBounds),
               onPositionChanged: (position, hasGesture) {
                 if (hasGesture) {
                   ref.read(mapViewModelProvider.notifier).updateBounds(position.visibleBounds);
@@ -125,18 +96,16 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
                 userAgentPackageName: 'com.traces.app',
                 retinaMode: RetinaMode.isHighDensity(context),
               ),
-              // User Location Marker
               if (userLocAsync.hasValue)
                 MarkerLayer(
                   markers: [
                     Marker(
                       point: LatLng(userLocAsync.value!.latitude, userLocAsync.value!.longitude),
-                      width: 80, height: 80, // Larger hit box for visuals
+                      width: 120, height: 120,
                       child: _PulsingUserMarker(),
                     ),
                   ],
                 ),
-              // Selected Place Marker
               if (mapState.selectedPlace != null)
                  MarkerLayer(
                   markers: [
@@ -150,12 +119,11 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
                     ),
                   ],
                 ),
-              // Traces Markers
               MarkerLayer(
                 markers: displayedTraces.map((trace) {
                   return Marker(
                     point: LatLng((trace['lat'] as num).toDouble(), (trace['long'] as num).toDouble()),
-                    width: 50, height: 50,
+                    width: 60, height: 60,
                     child: _LiquidTraceMarker(
                       trace: trace,
                       onTap: () {
@@ -169,101 +137,47 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
             ],
           ),
 
-          // 2. SCANNER OVERLAY (Shader)
-          Positioned.fill(
-            child: ScannerOverlay(isScanning: mapState.isScanning),
-          ),
+          Positioned.fill(child: ScannerOverlay(isScanning: mapState.isScanning)),
 
-          // 3. TOP BAR (Search)
+          // 2. LIQUID TOP BAR (Menu)
           Positioned(
             top: 60, left: 16, right: 16,
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Hex Menu Button
+                    // Hex Menu Trigger (Floating Glass Orb)
                     GestureDetector(
                       onTap: () {
                         HapticService.selectionClick();
                         setState(() => _isHexMenuOpen = true);
                       },
                       child: GlassPanel(
-                        width: 56, height: 56,
-                        radius: 16,
-                        padding: EdgeInsets.zero,
-                        child: const Icon(Icons.grid_view, color: Colors.white),
+                        width: 50, height: 50, radius: 25, padding: EdgeInsets.zero, blur: 25,
+                        backgroundColor: Colors.white.withOpacity(0.05),
+                        child: const Icon(Icons.blur_on, color: Colors.white70),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Search Bar
-                    Expanded(
-                      child: GlassPanel.pill(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Icon(Icons.search, color: Colors.white.withOpacity(0.7)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: _onSearchChanged,
-                                onTap: () => HapticService.heavyImpact(), // Heavy impact on search focus
-                                style: const TextStyle(color: Colors.white, fontSize: 16),
-                                decoration: InputDecoration(
-                                  hintText: "Search places, memories...",
-                                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                            if (_searchController.text.isNotEmpty)
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.white70),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                                  ref.read(mapViewModelProvider.notifier).clearSelection();
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2),
                   ],
                 ),
-                
-                // Search Suggestions List
-                if (mapState.placeSuggestions.isNotEmpty)
-                  SearchSuggestionsOverlay(
-                    suggestions: mapState.placeSuggestions,
-                    onSelect: (place) {
-                      _searchController.text = place.displayName;
-                      ref.read(mapViewModelProvider.notifier).selectPlace(place);
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ).animate().fadeIn().slideY(),
               ],
             ),
           ),
 
-          // 4. LIVE PLACE WIDGET (Animated Switcher)
+          // 3. SELECTED PLACE CARD
           Positioned(
             top: 130, left: 16, right: 16,
             child: AnimatedSwitcher(
               duration: 500.ms,
-              transitionBuilder: (child, animation) {
-                return SlideTransition(
-                  position: Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero).animate(animation),
-                  child: FadeTransition(opacity: animation, child: child),
-                );
-              },
+              transitionBuilder: (child, animation) => SlideTransition(
+                position: Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
+              ),
               child: mapState.selectedPlace != null 
                 ? PlaceInfoCard(
-                    key: ValueKey(mapState.selectedPlace!.location), // Ensure rebuild on change
+                    key: ValueKey(mapState.selectedPlace!.location),
                     place: mapState.selectedPlace!,
                     onClose: () => ref.read(mapViewModelProvider.notifier).clearSelection(),
                   )
@@ -271,147 +185,149 @@ class _MapScreenState extends ConsumerState<MapScreen> with TickerProviderStateM
             ),
           ),
 
-          // 5. BOTTOM CONTROLS
+          // 4. DYNAMIC BOTTOM ISLAND (Unified Controls)
           Positioned(
-            bottom: 120, left: 16, right: 16, // Lifted significantly to clear the bottom nav bar
+            bottom: 120, left: 24, right: 24,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Filter Chips
+                // Minimalist Filters
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _FilterChip(
-                          label: "Story", 
-                          selected: mapState.activeFilters.contains('STORY'),
-                          onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('STORY')
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                          label: "Challenge", 
-                          selected: mapState.activeFilters.contains('CHALLENGE'),
-                          onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('CHALLENGE')
-                      ),
-                       const SizedBox(width: 8),
-                      _FilterChip(
-                          label: "Orb", 
-                          selected: mapState.activeFilters.contains('ORB'),
-                          onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('ORB')
-                      ),
-                       const SizedBox(width: 8),
-                      _FilterChip(
-                          label: "Friend", 
-                          selected: mapState.activeFilters.contains('FRIEND'),
-                          onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('FRIEND')
-                      ),
+                      _MinimalFilter(icon: Icons.auto_stories, label: "Stories", active: mapState.activeFilters.contains('STORY'), onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('STORY')),
+                      const SizedBox(width: 12),
+                      _MinimalFilter(icon: Icons.emoji_events, label: "Challenges", active: mapState.activeFilters.contains('CHALLENGE'), onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('CHALLENGE')),
+                      const SizedBox(width: 12),
+                      _MinimalFilter(icon: Icons.catching_pokemon, label: "Orbs", active: mapState.activeFilters.contains('ORB'), onTap: () => ref.read(mapViewModelProvider.notifier).toggleFilter('ORB')),
                     ],
                   ),
-                ).animate().fadeIn().slideX(),
+                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.5),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // Action Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Zoom Controls
-                    Column(
-                      children: [
-                        AnimatedGlassButton(
-                          icon: const Icon(Icons.add, color: Colors.white),
-                          onTap: () {
-                            HapticService.selectionClick();
-                            _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1);
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        AnimatedGlassButton(
-                          icon: const Icon(Icons.remove, color: Colors.white),
-                          onTap: () {
-                            HapticService.selectionClick();
-                            _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1);
-                          },
-                        ),
-                      ],
-                    ),
-
-                    // Scan / Refresh Button
-                    GestureDetector(
-                      onTap: () {
-                        HapticService.lightImpact();
-                        ref.read(mapViewModelProvider.notifier).scanArea();
-                      },
-                      child: GlassPanel.pill(
-                        height: 50, width: 160, // Increased width slightly to prevent overflow
-                        backgroundColor: mapState.isScanning 
-                            ? DesignTokens.neonGreen.withOpacity(0.2) 
-                            : Colors.black.withOpacity(0.3),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min, // Ensure row shrinks
-                          children: [
-                            if (mapState.isScanning)
-                              Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                width: 12, height: 12,
-                                child: const CircularProgressIndicator(strokeWidth: 2, color: DesignTokens.neonGreen),
-                              )
-                            else 
-                              const Icon(Icons.radar, color: DesignTokens.neonGreen, size: 18),
-                            const SizedBox(width: 8),
-                            Flexible( // Added Flexible
-                              child: Text(
-                                mapState.isScanning ? "SCANNING" : "SCAN AREA",
-                                overflow: TextOverflow.ellipsis, // Handle overflow gracefully
-                                style: const TextStyle(
-                                  color: DesignTokens.neonGreen, 
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12, // Ensure font size fits
-                                  letterSpacing: 1.2
-                                ),
-                              ),
+                // Core Action Hub
+                GlassPanel.pill(
+                  height: 70,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  blur: 30,
+                  backgroundColor: Colors.white.withOpacity(0.03),
+                  border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Locate Me
+                      IconButton(
+                        icon: const Icon(Icons.my_location, color: Colors.white70),
+                        onPressed: () {
+                          HapticService.mediumImpact();
+                          userLocAsync.whenData((loc) => _mapController.move(LatLng(loc.latitude, loc.longitude), 16));
+                        },
+                      ),
+                      
+                      // Massive Center Scan Button
+                      GestureDetector(
+                        onTap: () {
+                          HapticService.heavyImpact();
+                          ref.read(mapViewModelProvider.notifier).scanArea();
+                        },
+                        child: Container(
+                          width: 140, height: 54,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(27),
+                            gradient: LinearGradient(
+                              colors: mapState.isScanning 
+                                ? [DesignTokens.neonGreen.withOpacity(0.5), DesignTokens.neonGreen.withOpacity(0.2)]
+                                : [Colors.white.withOpacity(0.15), Colors.white.withOpacity(0.05)],
                             ),
-                          ],
+                            boxShadow: mapState.isScanning ? [BoxShadow(color: DesignTokens.neonGreen.withOpacity(0.3), blurRadius: 20)] : [],
+                            border: Border.all(color: mapState.isScanning ? DesignTokens.neonGreen : Colors.white.withOpacity(0.2)),
+                          ),
+                          child: Center(
+                            child: mapState.isScanning
+                                ? const CircularProgressIndicator(strokeWidth: 2, color: DesignTokens.neonGreen).animate().scale(curve: Curves.elasticOut)
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.radar, color: Colors.white, size: 20),
+                                      const SizedBox(width: 8),
+                                      Text("SCAN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 12)),
+                                    ],
+                                  ),
+                          ),
                         ),
-                      ).animate(target: mapState.isScanning ? 1 : 0)
-                       .shimmer(duration: 1.seconds, color: DesignTokens.neonGreen),
-                    ),
+                      ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 1.0, end: 1.02, duration: 2.seconds),
 
-                    // My Location
-                    AnimatedGlassButton(
-                      icon: const Icon(Icons.my_location, color: Colors.white),
-                      onTap: () {
-                         HapticService.mediumImpact();
-                         userLocAsync.whenData((loc) {
-                           _mapController.move(LatLng(loc.latitude, loc.longitude), 16);
-                         });
-                      },
-                    ),
-                  ],
-                ),
+                      // Feed Toggle (Visual Cue)
+                      IconButton(
+                        icon: const Icon(Icons.view_agenda_outlined, color: Colors.white70),
+                        onPressed: () {
+                          HapticService.selectionClick();
+                          // Tapping this could programmatically open the feed drawer if we add a controller, 
+                          // but for now it acts as a visual hint.
+                        },
+                      ).animate(onPlay: (c) => c.repeat(reverse: true)).moveY(begin: 0, end: -3, duration: 1.seconds),
+                    ],
+                  ),
+                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.5),
               ],
             ),
           ),
           
           const FeedDrawer(),
 
-          // 6. HEX MENU OVERLAY
           HexMenu(
             isOpen: _isHexMenuOpen,
             onClose: () => setState(() => _isHexMenuOpen = false),
             items: [
-              HexMenuItem(icon: Icons.map, label: "Map Styles", color: Colors.blueAccent, onTap: () {}),
-              HexMenuItem(icon: Icons.layers, label: "Layers", color: Colors.purpleAccent, onTap: () {}),
-              HexMenuItem(icon: Icons.settings, label: "Settings", color: Colors.grey, onTap: () => context.push('/settings')),
-              HexMenuItem(icon: Icons.share, label: "Share", color: Colors.greenAccent, onTap: () {}),
-              HexMenuItem(icon: Icons.bug_report, label: "Report", color: Colors.orangeAccent, onTap: () {}),
-              HexMenuItem(icon: Icons.info, label: "About", color: Colors.tealAccent, onTap: () {}),
+              HexMenuItem(icon: Icons.layers, label: "Reality Layers", color: DesignTokens.liquidBlue, onTap: () {}),
+              HexMenuItem(icon: Icons.settings, label: "System Config", color: Colors.grey, onTap: () => context.push('/settings')),
+              HexMenuItem(icon: Icons.person, label: "Identity", color: DesignTokens.neonGreen, onTap: () => context.push('/profile')),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MinimalFilter extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _MinimalFilter({required this.icon, required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticService.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: 300.ms,
+        curve: Curves.easeOutExpo,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: active ? Colors.white.withOpacity(0.4) : Colors.white.withOpacity(0.05)),
+          boxShadow: active ? [BoxShadow(color: Colors.white.withOpacity(0.1), blurRadius: 10)] : [],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: active ? Colors.white : Colors.white54, size: 14),
+            if (active) ...[
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            ]
+          ],
+        ),
       ),
     );
   }
@@ -423,29 +339,23 @@ class _PulsingUserMarker extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        // Outer Pulse
         Container(
-          width: 80, height: 80,
+          width: 120, height: 120,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: RadialGradient(colors: [
-              DesignTokens.liquidBlue.withOpacity(0.3),
-              DesignTokens.liquidBlue.withOpacity(0.0)
-            ]),
+            gradient: RadialGradient(colors: [DesignTokens.liquidBlue.withOpacity(0.4), DesignTokens.liquidBlue.withOpacity(0.0)]),
           ),
         ).animate(onPlay: (c) => c.repeat())
-         .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.5, 1.5), duration: 2.seconds, curve: Curves.easeOut)
-         .fadeOut(duration: 2.seconds),
-         
-        // Core
+         .scale(begin: const Offset(0.3, 0.3), end: const Offset(1.0, 1.0), duration: 3.seconds, curve: Curves.easeOutQuad)
+         .fadeOut(duration: 3.seconds),
         Container(
-          width: 20, height: 20,
+          width: 24, height: 24,
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: DesignTokens.liquidBlue, blurRadius: 10, spreadRadius: 2),
-              const BoxShadow(color: Colors.white, blurRadius: 5, spreadRadius: 1),
+              BoxShadow(color: DesignTokens.liquidBlue, blurRadius: 15, spreadRadius: 3),
+              const BoxShadow(color: Colors.white, blurRadius: 8, spreadRadius: 1),
             ],
           ),
         ),
@@ -467,10 +377,10 @@ class _LiquidTraceMarker extends StatelessWidget {
     IconData icon = Icons.location_on;
 
     switch (type) {
-      case 'STORY': color = Colors.purpleAccent; icon = Icons.auto_stories; break;
+      case 'STORY': color = DesignTokens.electricPurple; icon = Icons.auto_stories; break;
       case 'CHALLENGE': color = Colors.orangeAccent; icon = Icons.emoji_events; break;
       case 'ORB': color = DesignTokens.neonGreen; icon = Icons.catching_pokemon; break;
-      case 'FRIEND': color = Colors.blueAccent; icon = Icons.face; break;
+      case 'FRIEND': color = DesignTokens.liquidBlue; icon = Icons.face; break;
     }
 
     return GestureDetector(
@@ -478,60 +388,18 @@ class _LiquidTraceMarker extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Glass Base
           Container(
-            width: 40, height: 40,
+            width: 50, height: 50,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: color.withOpacity(0.15),
-              border: Border.all(color: color.withOpacity(0.6), width: 1.5),
-              boxShadow: [
-                BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, spreadRadius: 1),
-              ],
+              color: color.withOpacity(0.2),
+              border: Border.all(color: color.withOpacity(0.8), width: 2),
+              boxShadow: [BoxShadow(color: color.withOpacity(0.4), blurRadius: 12, spreadRadius: 2)],
             ),
           ).animate(onPlay: (c) => c.repeat(reverse: true))
-           .scaleXY(begin: 1.0, end: 1.1, duration: 1.5.seconds, curve: Curves.easeInOut),
-           
-          // Icon
-          Icon(icon, color: Colors.white, size: 20),
+           .scaleXY(begin: 1.0, end: 1.15, duration: 2.seconds, curve: Curves.easeInOut),
+          Icon(icon, color: Colors.white, size: 24),
         ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticService.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        child: GlassPanel.pill(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          backgroundColor: selected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-          border: selected ? Border.all(color: Colors.white, width: 1) : null,
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.white70,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
