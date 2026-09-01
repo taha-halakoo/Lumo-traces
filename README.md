@@ -1,23 +1,5 @@
 # Lumo - The Real-World Browser
 
-**Lumo** is a location-based social platform that bridges the digital and physical worlds. Users leave digital content ("loomo") at physical coordinates, which others can only discover and unlock when they are physically nearby (< 20m).
-
-## 🚀 Key Features
-- **Proximity-Based Discovery**: Content is hidden until you are physically there.
-- **The Brain (Hybrid Search)**: An AI-powered ranking engine that uses local vector embeddings to match content to your "Mood" and "Identity".
-- **Liquid Glass UI**: A fluid, transparent, and highly animated mobile experience.
-- **Gamification**: Collect "Gold Orbs" and complete "Challenges" in the real world.
-
-## 🏗️ Architecture
-This project is a monorepo powered by [Turborepo](https://turbo.build/):
-- `apps/mobile-app`: Flutter application for Android and iOS.
-- `services/backend-api`: Node.js (Fastify) backend with Supabase/PostgreSQL.
-- `packages/*`: Shared logic and configurations (future expansion).
-
-## 🛠️ Tech Stack
-- **Frontend**: Flutter, Riverpod, flutter_map, flutter_animate.
-- **Backend**: Node.js, Fastify, Supabase, Xenova Transformers (Local AI).
-=======
 **Lumo** is a premium location-based social platform that bridges the digital and physical worlds. Users leave digital content ("Traces") at physical coordinates, which others can only discover and unlock when they are physically within range (< 20m).
 
 ## 💎 UX
@@ -42,7 +24,6 @@ This project is a monorepo:
 ## 🛠️ Tech Stack
 - **Frontend**: Flutter, Riverpod, flutter_map, flutter_animate, Hive, SensorsPlus.
 - **Backend**: Node.js, Fastify, Zod, Xenova Transformers (Local AI).
->>>>>>> 7152ae6 (chore: migrate turborepo to v2 and fix workspace resolution)
 - **Database**: PostgreSQL with PostGIS and pgvector.
 
 ## 🏁 Getting Started
@@ -74,13 +55,8 @@ This project is a monorepo:
   ```
 
 ## 📜 Development
-<<<<<<< HEAD
-- **Tests**: `npm test` from root runs tests for all packages.
-- **Lint**: `npm run lint` from root.
-=======
 - **Tests**: `npm test` from root runs the native Node.js test runner and Flutter unit/widget tests.
 - **Quality**: Strict linting and type-checking enforced across the stack.
->>>>>>> 7152ae6 (chore: migrate turborepo to v2 and fix workspace resolution)
 
 ## ⚖️ License
 MIT
