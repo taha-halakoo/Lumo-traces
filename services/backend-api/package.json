@@ -23,7 +23,7 @@
     "lru-cache": "^11.2.6",
     "ml-distance": "^4.0.1",
     "uuid": "^13.0.0",
-    "zod": "^4.3.6"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
